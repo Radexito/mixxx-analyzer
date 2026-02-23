@@ -8,14 +8,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(PkgConfig REQUIRED)
 find_package(GTest REQUIRED)
 
-pkg_check_modules(KEYFINDER  REQUIRED libkeyfinder)
 pkg_check_modules(EBUR128    REQUIRED libebur128)
 pkg_check_modules(AVCODEC    REQUIRED libavcodec)
 pkg_check_modules(AVFORMAT   REQUIRED libavformat)
 pkg_check_modules(AVUTIL     REQUIRED libavutil)
 pkg_check_modules(SWRESAMPLE REQUIRED libswresample)
 
-# ── qm-dsp (BPM tempo tracker, copied from Mixxx) ────────────────────────────
+# ── qm-dsp (BPM tempo tracker + key detector, copied from Mixxx) ─────────────
 set(QM_DSP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/qm-dsp)
 
 add_library(qm-dsp STATIC
@@ -28,6 +27,11 @@ add_library(qm-dsp STATIC
     ${QM_DSP_DIR}/dsp/signalconditioning/Framer.cpp
     ${QM_DSP_DIR}/dsp/tempotracking/TempoTrackV2.cpp
     ${QM_DSP_DIR}/dsp/transforms/FFT.cpp
+    ${QM_DSP_DIR}/dsp/keydetection/GetKeyMode.cpp
+    ${QM_DSP_DIR}/dsp/chromagram/Chromagram.cpp
+    ${QM_DSP_DIR}/dsp/chromagram/ConstantQ.cpp
+    ${QM_DSP_DIR}/dsp/rateconversion/Decimator.cpp
+    ${QM_DSP_DIR}/base/Pitch.cpp
     ${QM_DSP_DIR}/maths/MathUtilities.cpp
     ${QM_DSP_DIR}/ext/kissfft/kiss_fft.c
     ${QM_DSP_DIR}/ext/kissfft/tools/kiss_fftr.c
@@ -41,12 +45,11 @@ set(ANALYSIS_SOURCES
     src/AudioDecoder.cpp
     src/DownmixAndOverlapHelper.cpp
     src/QmBpmAnalyzer.cpp
-    src/KeyAnalyzer.cpp
+    src/QmKeyAnalyzer.cpp
     src/GainAnalyzer.cpp
 )
 
 set(ANALYSIS_INCLUDE_DIRS
-    ${KEYFINDER_INCLUDE_DIRS}
     ${EBUR128_INCLUDE_DIRS}
     ${AVCODEC_INCLUDE_DIRS}
     ${AVFORMAT_INCLUDE_DIRS}
@@ -56,7 +59,6 @@ set(ANALYSIS_INCLUDE_DIRS
 
 set(ANALYSIS_LIBS
     qm-dsp
-    ${KEYFINDER_LIBRARIES}
     ${EBUR128_LIBRARIES}
     ${AVCODEC_LIBRARIES}
     ${AVFORMAT_LIBRARIES}

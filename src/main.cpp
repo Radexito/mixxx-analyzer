@@ -5,8 +5,8 @@
 
 #include "AudioDecoder.h"
 #include "GainAnalyzer.h"
-#include "KeyAnalyzer.h"
 #include "QmBpmAnalyzer.h"
+#include "QmKeyAnalyzer.h"
 
 namespace {
 
@@ -24,7 +24,7 @@ bool analyzeFile(const std::string& path) {
     bool initialized = false;
 
     std::unique_ptr<QmBpmAnalyzer> bpm;
-    std::unique_ptr<KeyAnalyzer> key;
+    std::unique_ptr<QmKeyAnalyzer> key;
     std::unique_ptr<GainAnalyzer> gain;
 
     std::string decodeError;
@@ -35,7 +35,7 @@ bool analyzeFile(const std::string& path) {
                     sampleRate = info.sampleRate;
                     channels = info.channels;
                     bpm  = std::make_unique<QmBpmAnalyzer>(sampleRate);
-                    key  = std::make_unique<KeyAnalyzer>(sampleRate);
+                    key  = std::make_unique<QmKeyAnalyzer>(sampleRate);
                     gain = std::make_unique<GainAnalyzer>(sampleRate);
                     initialized = true;
                 }
@@ -55,7 +55,7 @@ bool analyzeFile(const std::string& path) {
     }
 
     float detectedBpm = bpm->result();
-    KeyAnalyzer::Result detectedKey = key->result();
+    QmKeyAnalyzer::Result detectedKey = key->result();
     GainAnalyzer::Result gainResult{};
     bool gainOk = gain->result(gainResult);
 

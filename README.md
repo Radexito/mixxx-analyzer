@@ -1,47 +1,50 @@
 # manalysis
 
-A fast CLI tool for analyzing audio tracks. Outputs **BPM**, **musical key** (with Camelot wheel notation), and **gain** (LUFS + ReplayGain).
+A fast CLI tool for analyzing audio tracks. Outputs **BPM**, **musical key** (with Camelot wheel notation), **gain** (LUFS + ReplayGain), and **intro/outro timestamps** (first/last non-silent frame).
 
-Built as a standalone project using the same analysis libraries as [Mixxx](https://mixxx.org/) — no Qt, no Mixxx build required.
+Built as a standalone project using the **exact same analysis code** as [Mixxx](https://mixxx.org/) — no Qt, no Mixxx build required. The BPM and key detection are direct ports of Mixxx's `AnalyzerQueenMaryBeats` and `AnalyzerQueenMaryKey`, using the [qm-dsp](https://github.com/c4dm/qm-dsp) library copied into the repo.
 
 ## Example output
 
 ```
-track.mp3   BPM: 147.02  Key: D minor    ( 7A)  LUFS:   -9.88  RG: -8.12 dB
+track.mp3   BPM: 147.00  Key: D minor    ( 7A)  LUFS:   -9.88  RG: -8.12 dB  Intro: 0:00.04  Outro: 6:12.90
 ```
 
 Multiple files are processed sequentially:
 
 ```
 $ manalysis ~/Music/*.mp3
-~/Music/track1.mp3  BPM: 157.27  Key: F minor    ( 4A)  LUFS:   -9.10  RG: -8.90 dB
-~/Music/track2.mp3  BPM: 147.02  Key: D minor    ( 7A)  LUFS:   -9.88  RG: -8.12 dB
-~/Music/track3.mp3  BPM:  92.00  Key: G major    ( 9B)  LUFS:  -14.22  RG:  -3.78 dB
+~/Music/track1.mp3  BPM: 157.00  Key: F minor    ( 4A)  LUFS:   -9.10  RG: -8.90 dB  Intro: 0:00.00  Outro: 5:48.12
+~/Music/track2.mp3  BPM: 147.00  Key: D minor    ( 7A)  LUFS:   -9.88  RG: -8.12 dB  Intro: 0:00.04  Outro: 6:12.90
+~/Music/track3.mp3  BPM:  92.00  Key: G major    ( 9B)  LUFS:  -14.22  RG:  -3.78 dB  Intro: 0:00.00  Outro: 4:20.55
 ```
 
 ## Analysis methods
 
-| Feature | Library | Notes |
-|---------|---------|-------|
-| BPM | [SoundTouch](https://www.surina.net/soundtouch/) `BPMDetect` | Mono downmix, normalized to [60–200] range |
-| Key | [libkeyfinder](https://github.com/ibsh/libKeyFinder) | Stereo, outputs key name + Camelot code |
-| Gain | [libebur128](https://github.com/jiixyj/libebur128) | EBU R128 integrated loudness, RG2.0 reference −18 LUFS |
+| Feature | Library / Code | Notes |
+|---------|---------------|-------|
+| BPM | qm-dsp `TempoTrackV2` (port of Mixxx `AnalyzerQueenMaryBeats`) | Mono downmix, windowed onset detection, const-region BPM extraction |
+| Key | qm-dsp `GetKeyMode` (port of Mixxx `AnalyzerQueenMaryKey`) | Chromagram + HPCP + key profile correlation, outputs key name + Camelot code |
+| Gain | [libebur128](https://github.com/jiixyj/libebur128) | EBU R128 integrated loudness, ReplayGain 2.0 reference −18 LUFS |
+| Intro/Outro | Port of Mixxx `AnalyzerSilence` | First/last frame above −60 dB threshold (0.001f), same as Mixxx |
 | Decoding | FFmpeg (libavcodec/libavformat) | Supports MP3, FLAC, WAV, OGG, AAC, AIFF, and more |
+
+Results match Mixxx's analysis output. qm-dsp sources are vendored in `third_party/qm-dsp/`.
 
 ## Dependencies
 
-All available via pacman on Arch Linux:
+On Arch Linux:
 
 ```bash
-sudo pacman -S soundtouch libkeyfinder libebur128 ffmpeg cmake
+sudo pacman -S libebur128 ffmpeg cmake gtest
 ```
 
 On Debian/Ubuntu:
 
 ```bash
-sudo apt install libsoundtouch-dev libkeyfinder-dev libebur128-dev \
+sudo apt install libebur128-dev \
      libavcodec-dev libavformat-dev libavutil-dev libswresample-dev \
-     cmake build-essential
+     libgtest-dev cmake build-essential
 ```
 
 ## Build
@@ -66,15 +69,29 @@ manalysis --help
 
 Exit code is 0 if all files were analyzed successfully, 1 if any failed.
 
+## Tests
+
+Integration tests verify BPM and key results against Mixxx-detected reference values for 55 tracks:
+
+```bash
+build/manalysis-test
+```
+
 ## Project structure
 
 ```
 src/
-  AudioDecoder.h/cpp   FFmpeg-based decoder → float32 stereo chunks
-  BpmAnalyzer.h/cpp    SoundTouch BPMDetect wrapper
-  KeyAnalyzer.h/cpp    libkeyfinder wrapper (key name + Camelot)
-  GainAnalyzer.h/cpp   libebur128 wrapper (LUFS + ReplayGain)
-  main.cpp             CLI entry point
+  AudioDecoder.h/cpp        FFmpeg-based decoder → float32 stereo chunks
+  QmBpmAnalyzer.h/cpp       Port of Mixxx AnalyzerQueenMaryBeats (qm-dsp TempoTrackV2)
+  QmKeyAnalyzer.h/cpp       Port of Mixxx AnalyzerQueenMaryKey (qm-dsp GetKeyMode)
+  GainAnalyzer.h/cpp        libebur128 wrapper (LUFS + ReplayGain)
+  SilenceAnalyzer.h/cpp     Port of Mixxx AnalyzerSilence (intro/outro detection)
+  DownmixAndOverlapHelper.h/cpp  Port of Mixxx buffering_utils (windowed feeding)
+  main.cpp                  CLI entry point
+third_party/
+  qm-dsp/                   Queen Mary DSP library (vendored subset)
+tests/
+  analysis_test.cpp         55 integration tests vs. Mixxx reference values
 ```
 
 ## Camelot wheel

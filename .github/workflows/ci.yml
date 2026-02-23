@@ -33,7 +33,7 @@ jobs:
       - name: Run tests
         run: |
           docker run --rm manalysis-build \
-            bash -c "cd /src && build/manalysis-test"
+            bash -c "cd /src && bash tests/download_assets.sh && build/manalysis-test"
 
       - name: Extract binary
         run: |

@@ -80,6 +80,8 @@ add_executable(manalysis-test tests/analysis_test.cpp ${ANALYSIS_SOURCES})
 target_include_directories(manalysis-test PRIVATE ${ANALYSIS_INCLUDE_DIRS} src)
 target_link_libraries(manalysis-test PRIVATE ${ANALYSIS_LIBS} GTest::gtest GTest::gtest_main)
 target_compile_options(manalysis-test PRIVATE -Wall -O2)
+target_compile_definitions(manalysis-test PRIVATE
+    MANALYSIS_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/assets")
 
 add_test(NAME AnalysisTest COMMAND manalysis-test)
 

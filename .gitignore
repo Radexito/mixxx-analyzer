@@ -4,3 +4,5 @@ build/
 *.a
 .cache/
 compile_commands.json
+tests/assets/*.mp3
+tests/assets/*.flac

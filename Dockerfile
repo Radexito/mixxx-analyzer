@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     cmake \
     pkg-config \
     clang-format \
+    curl \
     libebur128-dev \
     libavcodec-dev \
     libavformat-dev \

@@ -9,10 +9,6 @@
 #include "QmBpmAnalyzer.h"
 #include "QmKeyAnalyzer.h"
 
-// ── Asset directory ──────────────────────────────────────────────────────────
-// Resolved relative to this source file at compile time via CMake.
-// Can be overridden at runtime with MANALYSIS_TEST_ASSETS env var.
-
 #ifndef MANALYSIS_TEST_ASSETS_DIR
 #define MANALYSIS_TEST_ASSETS_DIR ""
 #endif
@@ -26,8 +22,6 @@ static std::string assetsDir() {
         d += '/';
     return d;
 }
-
-// ── Helper ───────────────────────────────────────────────────────────────────
 
 struct TrackResult {
     float bpm;
@@ -70,7 +64,6 @@ static TrackResult analyzeTrack(const std::string& path) {
     return r;
 }
 
-// Skips the test if path does not exist on the filesystem.
 #define SKIP_IF_MISSING(path)                                                             \
     do {                                                                                  \
         if (!std::filesystem::exists(path)) {                                             \
@@ -80,12 +73,9 @@ static TrackResult analyzeTrack(const std::string& path) {
 
 constexpr float kBpmTol = 1.0f;
 
-// ── Audionautix tests ────────────────────────────────────────────────────────
 // Royalty-free tracks from Audionautix (CC BY 4.0, Jason Shaw).
 // Download with:  bash tests/download_assets.sh
-//
-// TODO: run Mixxx on each file, fill in expected BPM + Camelot, then rename
-// DISABLED_Audionautix → Audionautix to enable.
+// Reference values detected with Mixxx.
 
 struct AudionautixParams {
     const char* file;
@@ -93,9 +83,9 @@ struct AudionautixParams {
     const char* camelot;
 };
 
-class DISABLED_AudionautixTest : public ::testing::TestWithParam<AudionautixParams> {};
+class AudionautixTest : public ::testing::TestWithParam<AudionautixParams> {};
 
-TEST_P(DISABLED_AudionautixTest, BpmAndKey) {
+TEST_P(AudionautixTest, BpmAndKey) {
     std::string path = assetsDir() + GetParam().file;
     SKIP_IF_MISSING(path);
     auto r = analyzeTrack(path);
@@ -106,20 +96,19 @@ TEST_P(DISABLED_AudionautixTest, BpmAndKey) {
 // clang-format off
 INSTANTIATE_TEST_SUITE_P(
         Audionautix,
-        DISABLED_AudionautixTest,
+        AudionautixTest,
         ::testing::Values(
-                // TODO: fill in expected values after analyzing with Mixxx
-                AudionautixParams{"FallingSky.mp3",       0.0f, "?"},
-                AudionautixParams{"LatinHouseBed.mp3",    0.0f, "?"},
-                AudionautixParams{"BanjoHop.mp3",         0.0f, "?"},
-                AudionautixParams{"BeBop25.mp3",          0.0f, "?"},
-                AudionautixParams{"Boom.mp3",             0.0f, "?"},
-                AudionautixParams{"NightRave.mp3",        0.0f, "?"},
-                AudionautixParams{"Sk8board.mp3",         0.0f, "?"},
-                AudionautixParams{"AllGoodInTheWood.mp3", 0.0f, "?"},
-                AudionautixParams{"DanceDubber.mp3",      0.0f, "?"},
-                AudionautixParams{"DogHouse.mp3",         0.0f, "?"},
-                AudionautixParams{"Don'tStop.mp3",        0.0f, "?"}),
+                AudionautixParams{"FallingSky.mp3",       128.0f, "3B"},
+                AudionautixParams{"LatinHouseBed.mp3",    130.0f, "11A"},
+                AudionautixParams{"BanjoHop.mp3",         130.0f, "5A"},
+                AudionautixParams{"BeBop25.mp3",          100.0f, "8B"},
+                AudionautixParams{"Boom.mp3",             146.0f, "8A"},
+                AudionautixParams{"NightRave.mp3",        138.0f, "7A"},
+                AudionautixParams{"Sk8board.mp3",          80.0f, "10B"},
+                AudionautixParams{"AllGoodInTheWood.mp3", 120.0f, "6A"},
+                AudionautixParams{"DanceDubber.mp3",      140.0f, "8B"},
+                AudionautixParams{"DogHouse.mp3",         145.0f, "3B"},
+                AudionautixParams{"Don'tStop.mp3",        140.0f, "12A"}),
         [](const ::testing::TestParamInfo<AudionautixParams>& info) {
             std::string name = info.param.file;
             for (char& c : name) {

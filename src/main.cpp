@@ -12,14 +12,38 @@
 namespace {
 
 void printUsage(const char* argv0) {
-    std::fprintf(stderr, "Usage: %s <audiofile> [audiofile...]\n", argv0);
-    std::fprintf(stderr, "\nAnalyzes audio tracks and outputs BPM, key, and gain.\n");
-    std::fprintf(stderr, "\nOutputs tab-separated: file\\tBPM\\tKey\\tCamelot\\tLUFS\\tReplayGain\\tIntro\\tOutro\n");
+    std::fprintf(stderr, "Usage: %s [--json] <audiofile> [audiofile...]\n", argv0);
+    std::fprintf(stderr, "\nAnalyzes audio tracks and outputs BPM, key, gain, and intro/outro.\n");
+    std::fprintf(stderr, "\n  --json   Output results as a JSON array\n");
 }
 
-bool analyzeFile(const std::string& path) {
-    // We need to know the sample rate before constructing analyzers,
-    // so we do a quick probe pass first.
+// Escape a string for embedding in JSON.
+std::string jsonEscape(const std::string& s) {
+    std::string out;
+    out.reserve(s.size() + 4);
+    for (unsigned char c : s) {
+        if (c == '"')       out += "\\\"";
+        else if (c == '\\') out += "\\\\";
+        else if (c == '\n') out += "\\n";
+        else if (c == '\r') out += "\\r";
+        else if (c == '\t') out += "\\t";
+        else                out += static_cast<char>(c);
+    }
+    return out;
+}
+
+struct AnalysisResult {
+    std::string path;
+    float bpm;
+    std::string key;
+    std::string camelot;
+    double lufs;
+    double replayGain;
+    double introSecs;
+    double outroSecs;
+};
+
+bool analyzeFile(const std::string& path, AnalysisResult& out) {
     int sampleRate = 0;
     int channels = 0;
     bool initialized = false;
@@ -58,12 +82,23 @@ bool analyzeFile(const std::string& path) {
         return false;
     }
 
-    float detectedBpm = bpm->result();
-    QmKeyAnalyzer::Result detectedKey = key->result();
     GainAnalyzer::Result gainResult{};
     bool gainOk = gain->result(gainResult);
+    QmKeyAnalyzer::Result detectedKey = key->result();
     SilenceAnalyzer::Result silenceResult = silence->result();
 
+    out.path        = path;
+    out.bpm         = bpm->result();
+    out.key         = detectedKey.key;
+    out.camelot     = detectedKey.camelot;
+    out.lufs        = gainOk ? gainResult.lufs : 0.0;
+    out.replayGain  = gainOk ? gainResult.replayGain : 0.0;
+    out.introSecs   = silenceResult.introSecs;
+    out.outroSecs   = silenceResult.outroSecs;
+    return true;
+}
+
+void printHuman(const AnalysisResult& r) {
     auto fmtTime = [](double secs) -> std::string {
         int m = static_cast<int>(secs) / 60;
         double s = secs - m * 60.0;
@@ -71,31 +106,42 @@ bool analyzeFile(const std::string& path) {
         std::snprintf(buf, sizeof(buf), "%d:%05.2f", m, s);
         return buf;
     };
-
-    // Print header once (detect by checking if first file)
-    // We just print the result line
-    if (detectedBpm > 0.0f) {
+    if (r.bpm > 0.0f) {
         std::printf("%-50s  BPM: %6.2f  Key: %-10s (%3s)  LUFS: %7.2f  RG: %+.2f dB  Intro: %s  Outro: %s\n",
-                path.c_str(),
-                detectedBpm,
-                detectedKey.key.c_str(),
-                detectedKey.camelot.c_str(),
-                gainOk ? gainResult.lufs : 0.0,
-                gainOk ? gainResult.replayGain : 0.0,
-                fmtTime(silenceResult.introSecs).c_str(),
-                fmtTime(silenceResult.outroSecs).c_str());
+                r.path.c_str(), r.bpm,
+                r.key.c_str(), r.camelot.c_str(),
+                r.lufs, r.replayGain,
+                fmtTime(r.introSecs).c_str(),
+                fmtTime(r.outroSecs).c_str());
     } else {
         std::printf("%-50s  BPM: (undetected)  Key: %-10s (%3s)  LUFS: %7.2f  RG: %+.2f dB  Intro: %s  Outro: %s\n",
-                path.c_str(),
-                detectedKey.key.c_str(),
-                detectedKey.camelot.c_str(),
-                gainOk ? gainResult.lufs : 0.0,
-                gainOk ? gainResult.replayGain : 0.0,
-                fmtTime(silenceResult.introSecs).c_str(),
-                fmtTime(silenceResult.outroSecs).c_str());
+                r.path.c_str(),
+                r.key.c_str(), r.camelot.c_str(),
+                r.lufs, r.replayGain,
+                fmtTime(r.introSecs).c_str(),
+                fmtTime(r.outroSecs).c_str());
     }
+}
 
-    return true;
+void printJson(const std::vector<AnalysisResult>& results) {
+    std::printf("[\n");
+    for (std::size_t i = 0; i < results.size(); ++i) {
+        const auto& r = results[i];
+        std::printf("  {\n");
+        std::printf("    \"file\": \"%s\",\n",    jsonEscape(r.path).c_str());
+        if (r.bpm > 0.0f)
+            std::printf("    \"bpm\": %.2f,\n",   r.bpm);
+        else
+            std::printf("    \"bpm\": null,\n");
+        std::printf("    \"key\": \"%s\",\n",     jsonEscape(r.key).c_str());
+        std::printf("    \"camelot\": \"%s\",\n", jsonEscape(r.camelot).c_str());
+        std::printf("    \"lufs\": %.2f,\n",      r.lufs);
+        std::printf("    \"replayGain\": %.2f,\n",r.replayGain);
+        std::printf("    \"introSecs\": %.3f,\n", r.introSecs);
+        std::printf("    \"outroSecs\": %.3f\n",  r.outroSecs);
+        std::printf("  }%s\n", (i + 1 < results.size()) ? "," : "");
+    }
+    std::printf("]\n");
 }
 
 } // namespace
@@ -106,15 +152,43 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    bool allOk = true;
+    bool jsonMode = false;
+    std::vector<std::string> files;
+
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
             printUsage(argv[0]);
             return 0;
+        } else if (std::strcmp(argv[i], "--json") == 0) {
+            jsonMode = true;
+        } else {
+            files.push_back(argv[i]);
         }
-        if (!analyzeFile(argv[i])) {
+    }
+
+    if (files.empty()) {
+        printUsage(argv[0]);
+        return 1;
+    }
+
+    bool allOk = true;
+    std::vector<AnalysisResult> results;
+
+    for (const auto& path : files) {
+        AnalysisResult r;
+        if (analyzeFile(path, r)) {
+            if (jsonMode)
+                results.push_back(std::move(r));
+            else
+                printHuman(r);
+        } else {
             allOk = false;
         }
     }
+
+    if (jsonMode)
+        printJson(results);
+
     return allOk ? 0 : 1;
 }
+

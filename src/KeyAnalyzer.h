@@ -6,15 +6,15 @@
 namespace KeyFinder {
 class KeyFinder;
 class Workspace;
-} // namespace KeyFinder
+}  // namespace KeyFinder
 
 // Detects musical key from a stream of interleaved float32 stereo samples
 // using libkeyfinder.
 class KeyAnalyzer {
   public:
     struct Result {
-        std::string key;     // e.g. "C major"
-        std::string camelot; // e.g. "8B"
+        std::string key;      // e.g. "C major"
+        std::string camelot;  // e.g. "8B"
     };
 
     explicit KeyAnalyzer(int sampleRate);

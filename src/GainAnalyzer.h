@@ -7,8 +7,8 @@
 class GainAnalyzer {
   public:
     struct Result {
-        double lufs;       // Integrated loudness in LUFS
-        double replayGain; // ReplayGain 2.0 dB value (-18 LUFS reference)
+        double lufs;        // Integrated loudness in LUFS
+        double replayGain;  // ReplayGain 2.0 dB value (-18 LUFS reference)
     };
 
     explicit GainAnalyzer(int sampleRate);

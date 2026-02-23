@@ -22,12 +22,18 @@ std::string jsonEscape(const std::string& s) {
     std::string out;
     out.reserve(s.size() + 4);
     for (unsigned char c : s) {
-        if (c == '"')       out += "\\\"";
-        else if (c == '\\') out += "\\\\";
-        else if (c == '\n') out += "\\n";
-        else if (c == '\r') out += "\\r";
-        else if (c == '\t') out += "\\t";
-        else                out += static_cast<char>(c);
+        if (c == '"')
+            out += "\\\"";
+        else if (c == '\\')
+            out += "\\\\";
+        else if (c == '\n')
+            out += "\\n";
+        else if (c == '\r')
+            out += "\\r";
+        else if (c == '\t')
+            out += "\\t";
+        else
+            out += static_cast<char>(c);
     }
     return out;
 }
@@ -48,30 +54,30 @@ bool analyzeFile(const std::string& path, AnalysisResult& out) {
     int channels = 0;
     bool initialized = false;
 
-    std::unique_ptr<QmBpmAnalyzer>   bpm;
-    std::unique_ptr<QmKeyAnalyzer>   key;
-    std::unique_ptr<GainAnalyzer>    gain;
+    std::unique_ptr<QmBpmAnalyzer> bpm;
+    std::unique_ptr<QmKeyAnalyzer> key;
+    std::unique_ptr<GainAnalyzer> gain;
     std::unique_ptr<SilenceAnalyzer> silence;
 
     std::string decodeError;
     bool ok = AudioDecoder::decode(
-            path,
-            [&](const float* samples, int numFrames, const AudioDecoder::AudioInfo& info) {
-                if (!initialized) {
-                    sampleRate = info.sampleRate;
-                    channels = info.channels;
-                    bpm     = std::make_unique<QmBpmAnalyzer>(sampleRate);
-                    key     = std::make_unique<QmKeyAnalyzer>(sampleRate);
-                    gain    = std::make_unique<GainAnalyzer>(sampleRate);
-                    silence = std::make_unique<SilenceAnalyzer>(sampleRate, channels);
-                    initialized = true;
-                }
-                bpm->feed(samples, numFrames);
-                key->feed(samples, numFrames);
-                gain->feed(samples, numFrames);
-                silence->feed(samples, numFrames);
-            },
-            decodeError);
+        path,
+        [&](const float* samples, int numFrames, const AudioDecoder::AudioInfo& info) {
+            if (!initialized) {
+                sampleRate = info.sampleRate;
+                channels = info.channels;
+                bpm = std::make_unique<QmBpmAnalyzer>(sampleRate);
+                key = std::make_unique<QmKeyAnalyzer>(sampleRate);
+                gain = std::make_unique<GainAnalyzer>(sampleRate);
+                silence = std::make_unique<SilenceAnalyzer>(sampleRate, channels);
+                initialized = true;
+            }
+            bpm->feed(samples, numFrames);
+            key->feed(samples, numFrames);
+            gain->feed(samples, numFrames);
+            silence->feed(samples, numFrames);
+        },
+        decodeError);
 
     if (!ok) {
         std::fprintf(stderr, "Error decoding '%s': %s\n", path.c_str(), decodeError.c_str());
@@ -87,14 +93,14 @@ bool analyzeFile(const std::string& path, AnalysisResult& out) {
     QmKeyAnalyzer::Result detectedKey = key->result();
     SilenceAnalyzer::Result silenceResult = silence->result();
 
-    out.path        = path;
-    out.bpm         = bpm->result();
-    out.key         = detectedKey.key;
-    out.camelot     = detectedKey.camelot;
-    out.lufs        = gainOk ? gainResult.lufs : 0.0;
-    out.replayGain  = gainOk ? gainResult.replayGain : 0.0;
-    out.introSecs   = silenceResult.introSecs;
-    out.outroSecs   = silenceResult.outroSecs;
+    out.path = path;
+    out.bpm = bpm->result();
+    out.key = detectedKey.key;
+    out.camelot = detectedKey.camelot;
+    out.lufs = gainOk ? gainResult.lufs : 0.0;
+    out.replayGain = gainOk ? gainResult.replayGain : 0.0;
+    out.introSecs = silenceResult.introSecs;
+    out.outroSecs = silenceResult.outroSecs;
     return true;
 }
 
@@ -107,19 +113,17 @@ void printHuman(const AnalysisResult& r) {
         return buf;
     };
     if (r.bpm > 0.0f) {
-        std::printf("%-50s  BPM: %6.2f  Key: %-10s (%3s)  LUFS: %7.2f  RG: %+.2f dB  Intro: %s  Outro: %s\n",
-                r.path.c_str(), r.bpm,
-                r.key.c_str(), r.camelot.c_str(),
-                r.lufs, r.replayGain,
-                fmtTime(r.introSecs).c_str(),
-                fmtTime(r.outroSecs).c_str());
+        std::printf(
+            "%-50s  BPM: %6.2f  Key: %-10s (%3s)  LUFS: %7.2f  RG: %+.2f dB  Intro: %s  Outro: "
+            "%s\n",
+            r.path.c_str(), r.bpm, r.key.c_str(), r.camelot.c_str(), r.lufs, r.replayGain,
+            fmtTime(r.introSecs).c_str(), fmtTime(r.outroSecs).c_str());
     } else {
-        std::printf("%-50s  BPM: (undetected)  Key: %-10s (%3s)  LUFS: %7.2f  RG: %+.2f dB  Intro: %s  Outro: %s\n",
-                r.path.c_str(),
-                r.key.c_str(), r.camelot.c_str(),
-                r.lufs, r.replayGain,
-                fmtTime(r.introSecs).c_str(),
-                fmtTime(r.outroSecs).c_str());
+        std::printf(
+            "%-50s  BPM: (undetected)  Key: %-10s (%3s)  LUFS: %7.2f  RG: %+.2f dB  Intro: %s  "
+            "Outro: %s\n",
+            r.path.c_str(), r.key.c_str(), r.camelot.c_str(), r.lufs, r.replayGain,
+            fmtTime(r.introSecs).c_str(), fmtTime(r.outroSecs).c_str());
     }
 }
 
@@ -128,23 +132,23 @@ void printJson(const std::vector<AnalysisResult>& results) {
     for (std::size_t i = 0; i < results.size(); ++i) {
         const auto& r = results[i];
         std::printf("  {\n");
-        std::printf("    \"file\": \"%s\",\n",    jsonEscape(r.path).c_str());
+        std::printf("    \"file\": \"%s\",\n", jsonEscape(r.path).c_str());
         if (r.bpm > 0.0f)
-            std::printf("    \"bpm\": %.2f,\n",   r.bpm);
+            std::printf("    \"bpm\": %.2f,\n", r.bpm);
         else
             std::printf("    \"bpm\": null,\n");
-        std::printf("    \"key\": \"%s\",\n",     jsonEscape(r.key).c_str());
+        std::printf("    \"key\": \"%s\",\n", jsonEscape(r.key).c_str());
         std::printf("    \"camelot\": \"%s\",\n", jsonEscape(r.camelot).c_str());
-        std::printf("    \"lufs\": %.2f,\n",      r.lufs);
-        std::printf("    \"replayGain\": %.2f,\n",r.replayGain);
+        std::printf("    \"lufs\": %.2f,\n", r.lufs);
+        std::printf("    \"replayGain\": %.2f,\n", r.replayGain);
         std::printf("    \"introSecs\": %.3f,\n", r.introSecs);
-        std::printf("    \"outroSecs\": %.3f\n",  r.outroSecs);
+        std::printf("    \"outroSecs\": %.3f\n", r.outroSecs);
         std::printf("  }%s\n", (i + 1 < results.size()) ? "," : "");
     }
     std::printf("]\n");
 }
 
-} // namespace
+}  // namespace
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -191,4 +195,3 @@ int main(int argc, char* argv[]) {
 
     return allOk ? 0 : 1;
 }
-

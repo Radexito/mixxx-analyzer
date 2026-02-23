@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    name: Build & release
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build image
+        run: docker build -t manalysis-build .
+
+      - name: Run tests
+        run: |
+          docker run --rm manalysis-build \
+            bash -c "cd /src && build/manalysis-test"
+
+      - name: Extract binary
+        run: |
+          id=$(docker create manalysis-build)
+          docker cp "$id":/src/build/manalysis ./manalysis-linux-x86_64
+          docker rm "$id"
+          chmod +x manalysis-linux-x86_64
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          echo "tag=build-$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "manalysis ${{ steps.tag.outputs.tag }}"
+          body: |
+            Automated release from commit ${{ github.sha }}
+
+            ${{ github.event.head_commit.message }}
+          files: manalysis-linux-x86_64
+          fail_on_unmatched_files: true

@@ -9,7 +9,7 @@ class AudioDecoder {
   public:
     struct AudioInfo {
         int sampleRate;
-        int channels; // always 2 after decode
+        int channels;  // always 2 after decode
     };
 
     // callback(samples, numFrames, info)

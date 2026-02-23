@@ -30,31 +30,31 @@ struct KeyInfo {
 
 // Index 0 = INVALID, 1..12 = major, 13..24 = minor
 static const KeyInfo kKeyInfo[25] = {
-    {"(none)",     ""},    //  0 INVALID
-    {"C major",    "8B"},  //  1
-    {"Db major",   "3B"},  //  2
-    {"D major",    "10B"}, //  3
-    {"Eb major",   "5B"},  //  4
-    {"E major",    "12B"}, //  5
-    {"F major",    "7B"},  //  6
-    {"F# major",   "2B"},  //  7
-    {"G major",    "9B"},  //  8
-    {"Ab major",   "4B"},  //  9
-    {"A major",    "11B"}, // 10
-    {"Bb major",   "6B"},  // 11
-    {"B major",    "1B"},  // 12
-    {"C minor",    "5A"},  // 13
-    {"C# minor",   "12A"}, // 14
-    {"D minor",    "7A"},  // 15
-    {"Eb minor",   "2A"},  // 16
-    {"E minor",    "9A"},  // 17
-    {"F minor",    "4A"},  // 18
-    {"F# minor",   "11A"}, // 19
-    {"G minor",    "6A"},  // 20
-    {"Ab minor",   "1A"},  // 21
-    {"A minor",    "8A"},  // 22
-    {"Bb minor",   "3A"},  // 23
-    {"B minor",    "10A"}, // 24
+    {"(none)", ""},       //  0 INVALID
+    {"C major", "8B"},    //  1
+    {"Db major", "3B"},   //  2
+    {"D major", "10B"},   //  3
+    {"Eb major", "5B"},   //  4
+    {"E major", "12B"},   //  5
+    {"F major", "7B"},    //  6
+    {"F# major", "2B"},   //  7
+    {"G major", "9B"},    //  8
+    {"Ab major", "4B"},   //  9
+    {"A major", "11B"},   // 10
+    {"Bb major", "6B"},   // 11
+    {"B major", "1B"},    // 12
+    {"C minor", "5A"},    // 13
+    {"C# minor", "12A"},  // 14
+    {"D minor", "7A"},    // 15
+    {"Eb minor", "2A"},   // 16
+    {"E minor", "9A"},    // 17
+    {"F minor", "4A"},    // 18
+    {"F# minor", "11A"},  // 19
+    {"G minor", "6A"},    // 20
+    {"Ab minor", "1A"},   // 21
+    {"A minor", "8A"},    // 22
+    {"Bb minor", "3A"},   // 23
+    {"B minor", "10A"},   // 24
 };
 
 // ── Constructor ──────────────────────────────────────────────────────────────
@@ -64,12 +64,13 @@ QmKeyAnalyzer::QmKeyAnalyzer(int sampleRate) {
     m_pKeyMode = std::make_unique<GetKeyMode>(cfg);
 
     const size_t windowSize = static_cast<size_t>(m_pKeyMode->getBlockSize());
-    const size_t stepSize   = static_cast<size_t>(m_pKeyMode->getHopSize());
+    const size_t stepSize = static_cast<size_t>(m_pKeyMode->getHopSize());
 
     m_helper.initialize(windowSize, stepSize, [this](double* pWindow, size_t) -> bool {
         int key = m_pKeyMode->process(pWindow);
         // key range is 0-24 (0 = no key detected)
-        if (key < 0 || key > 24) key = 0;
+        if (key < 0 || key > 24)
+            key = 0;
         if (key != m_prevKey) {
             m_keyChanges.push_back({key, static_cast<double>(m_currentFrame)});
             m_prevKey = key;
@@ -84,7 +85,7 @@ QmKeyAnalyzer::~QmKeyAnalyzer() = default;
 
 void QmKeyAnalyzer::feed(const float* stereoFrames, int numFrames) {
     m_currentFrame += static_cast<size_t>(numFrames);
-    m_totalFrames  += numFrames;
+    m_totalFrames += numFrames;
     m_helper.processStereoSamples(stereoFrames, numFrames * 2);
 }
 
@@ -107,9 +108,8 @@ QmKeyAnalyzer::Result QmKeyAnalyzer::result() {
         for (size_t i = 0; i < m_keyChanges.size(); ++i) {
             int k = m_keyChanges[i].first;
             double start = m_keyChanges[i].second;
-            double end   = (i + 1 < m_keyChanges.size())
-                               ? m_keyChanges[i + 1].second
-                               : static_cast<double>(m_totalFrames);
+            double end = (i + 1 < m_keyChanges.size()) ? m_keyChanges[i + 1].second
+                                                       : static_cast<double>(m_totalFrames);
             histogram[k] += (end - start);
         }
         double maxDuration = 0;
@@ -121,6 +121,7 @@ QmKeyAnalyzer::Result QmKeyAnalyzer::result() {
         }
     }
 
-    if (globalKey < 0 || globalKey > 24) globalKey = 0;
+    if (globalKey < 0 || globalKey > 24)
+        globalKey = 0;
     return {globalKey, kKeyInfo[globalKey].name, kKeyInfo[globalKey].camelot};
 }

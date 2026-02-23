@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  format:
+    name: clang-format check
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: sudo apt-get install -y clang-format
+
+      - name: Check formatting
+        run: |
+          find src -name '*.cpp' -o -name '*.h' | \
+            xargs clang-format --dry-run --Werror
+
+  build-and-test:
+    name: Build & test (Docker)
+    runs-on: ubuntu-22.04
+    needs: format
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t manalysis-build .
+
+      - name: Run tests
+        run: |
+          docker run --rm manalysis-build \
+            bash -c "cd /src && build/manalysis-test"
+
+      - name: Extract binary
+        run: |
+          id=$(docker create manalysis-build)
+          docker cp "$id":/src/build/manalysis ./manalysis-linux-x86_64
+          docker rm "$id"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: manalysis-linux-x86_64
+          path: manalysis-linux-x86_64
+          retention-days: 7

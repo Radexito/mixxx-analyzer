@@ -29,5 +29,5 @@ class QmBpmAnalyzer {
     std::unique_ptr<DetectionFunction> m_pDetectionFunction;
     DownmixAndOverlapHelper m_helper;
     std::vector<double> m_detectionResults;
-    std::vector<double> m_beats; // beat positions in df-increment units
+    std::vector<double> m_beats;  // beat positions in df-increment units
 };

@@ -2,20 +2,18 @@
 
 #include <algorithm>
 
-bool DownmixAndOverlapHelper::initialize(
-        size_t windowSize, size_t stepSize, const WindowReadyCallback& callback) {
+bool DownmixAndOverlapHelper::initialize(size_t windowSize, size_t stepSize,
+                                         const WindowReadyCallback& callback) {
     m_buffer.assign(windowSize, 0.0);
     m_callback = callback;
     m_windowSize = windowSize;
     m_stepSize = stepSize;
     // Center the first frame in the FFT window (matches Mixxx behaviour).
     m_bufferWritePosition = windowSize / 2;
-    return m_windowSize > 0 && m_stepSize > 0 &&
-            m_stepSize <= m_windowSize && callback;
+    return m_windowSize > 0 && m_stepSize > 0 && m_stepSize <= m_windowSize && callback;
 }
 
-bool DownmixAndOverlapHelper::processStereoSamples(
-        const float* pInput, size_t inputStereoSamples) {
+bool DownmixAndOverlapHelper::processStereoSamples(const float* pInput, size_t inputStereoSamples) {
     return processInner(pInput, inputStereoSamples / 2);
 }
 
@@ -37,7 +35,7 @@ bool DownmixAndOverlapHelper::processInner(const float* pInput, size_t numInputF
         if (pInput) {
             for (size_t i = 0; i < numFrames; ++i) {
                 pDownmix[m_bufferWritePosition + i] =
-                        (pInput[(inRead + i) * 2] + pInput[(inRead + i) * 2 + 1]) * 0.5;
+                    (pInput[(inRead + i) * 2] + pInput[(inRead + i) * 2 + 1]) * 0.5;
             }
         } else {
             for (size_t i = 0; i < numFrames; ++i) {

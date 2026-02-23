@@ -36,10 +36,10 @@ std::string avError(int err) {
     return buf;
 }
 
-} // namespace
+}  // namespace
 
 bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& error) {
-    av_log_set_level(AV_LOG_ERROR); // suppress decoder warnings (timestamp drift etc.)
+    av_log_set_level(AV_LOG_ERROR);  // suppress decoder warnings (timestamp drift etc.)
 
     // --- Open container ---
     AVFormatContext* rawFmt = nullptr;
@@ -89,12 +89,10 @@ bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& err
     SwrContext* rawSwr = nullptr;
 
     AVChannelLayout outLayout = AV_CHANNEL_LAYOUT_STEREO;
-    if (int err = swr_alloc_set_opts2(
-                &rawSwr,
-                &outLayout,        AV_SAMPLE_FMT_FLT,  outSampleRate,
-                &codecCtx->ch_layout, codecCtx->sample_fmt, codecCtx->sample_rate,
-                0, nullptr);
-            err < 0) {
+    if (int err = swr_alloc_set_opts2(&rawSwr, &outLayout, AV_SAMPLE_FMT_FLT, outSampleRate,
+                                      &codecCtx->ch_layout, codecCtx->sample_fmt,
+                                      codecCtx->sample_rate, 0, nullptr);
+        err < 0) {
         error = "swr_alloc_set_opts2: " + avError(err);
         return false;
     }
@@ -106,7 +104,7 @@ bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& err
     }
 
     std::unique_ptr<AVPacket, PacketDeleter> pkt(av_packet_alloc());
-    std::unique_ptr<AVFrame, FrameDeleter>   frame(av_frame_alloc());
+    std::unique_ptr<AVFrame, FrameDeleter> frame(av_frame_alloc());
 
     const AudioInfo info{outSampleRate, outChannels};
 
@@ -127,9 +125,10 @@ bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& err
         std::vector<float> tmp(maxOut * outChannels);
         uint8_t* dst = reinterpret_cast<uint8_t*>(tmp.data());
 
-        int converted = swr_convert(swr.get(), &dst, maxOut,
-                const_cast<const uint8_t**>(f->data), f->nb_samples);
-        if (converted < 0) return;
+        int converted = swr_convert(swr.get(), &dst, maxOut, const_cast<const uint8_t**>(f->data),
+                                    f->nb_samples);
+        if (converted < 0)
+            return;
 
         size_t prev = outBuf.size();
         outBuf.resize(prev + converted * outChannels);
@@ -151,8 +150,10 @@ bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& err
 
         while (true) {
             int err = avcodec_receive_frame(codecCtx.get(), frame.get());
-            if (err == AVERROR(EAGAIN) || err == AVERROR_EOF) break;
-            if (err < 0) break;
+            if (err == AVERROR(EAGAIN) || err == AVERROR_EOF)
+                break;
+            if (err < 0)
+                break;
             convertAndBuffer(frame.get());
             av_frame_unref(frame.get());
         }
@@ -162,7 +163,8 @@ bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& err
     avcodec_send_packet(codecCtx.get(), nullptr);
     while (true) {
         int err = avcodec_receive_frame(codecCtx.get(), frame.get());
-        if (err == AVERROR_EOF || err < 0) break;
+        if (err == AVERROR_EOF || err < 0)
+            break;
         convertAndBuffer(frame.get());
         av_frame_unref(frame.get());
     }
@@ -178,7 +180,7 @@ bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& err
                 size_t prev = outBuf.size();
                 outBuf.resize(prev + converted * outChannels);
                 std::copy(tmp.begin(), tmp.begin() + converted * outChannels,
-                        outBuf.begin() + prev);
+                          outBuf.begin() + prev);
             }
         }
     }

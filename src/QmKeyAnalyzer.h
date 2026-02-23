@@ -16,8 +16,8 @@ class QmKeyAnalyzer {
         // Raw key index matching Mixxx's ChromaticKey proto enum:
         //   0=INVALID, 1=C_MAJOR..12=B_MAJOR, 13=C_MINOR..24=B_MINOR
         int chromaticKey{0};
-        std::string key;     // e.g. "D minor"
-        std::string camelot; // e.g. "7A"
+        std::string key;      // e.g. "D minor"
+        std::string camelot;  // e.g. "7A"
     };
 
     explicit QmKeyAnalyzer(int sampleRate);

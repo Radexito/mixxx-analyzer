@@ -4,9 +4,9 @@
 #include <vector>
 
 #include "AudioDecoder.h"
-#include "BpmAnalyzer.h"
 #include "GainAnalyzer.h"
 #include "KeyAnalyzer.h"
+#include "QmBpmAnalyzer.h"
 
 namespace {
 
@@ -23,7 +23,7 @@ bool analyzeFile(const std::string& path) {
     int channels = 0;
     bool initialized = false;
 
-    std::unique_ptr<BpmAnalyzer> bpm;
+    std::unique_ptr<QmBpmAnalyzer> bpm;
     std::unique_ptr<KeyAnalyzer> key;
     std::unique_ptr<GainAnalyzer> gain;
 
@@ -34,7 +34,7 @@ bool analyzeFile(const std::string& path) {
                 if (!initialized) {
                     sampleRate = info.sampleRate;
                     channels = info.channels;
-                    bpm  = std::make_unique<BpmAnalyzer>(sampleRate);
+                    bpm  = std::make_unique<QmBpmAnalyzer>(sampleRate);
                     key  = std::make_unique<KeyAnalyzer>(sampleRate);
                     gain = std::make_unique<GainAnalyzer>(sampleRate);
                     initialized = true;

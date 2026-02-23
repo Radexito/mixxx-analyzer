@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.16)
-project(manalysis VERSION 0.1.0 LANGUAGES CXX)
+project(manalysis VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(PkgConfig REQUIRED)
+find_package(GTest REQUIRED)
 
-pkg_check_modules(SOUNDTOUCH REQUIRED soundtouch)
 pkg_check_modules(KEYFINDER  REQUIRED libkeyfinder)
 pkg_check_modules(EBUR128    REQUIRED libebur128)
 pkg_check_modules(AVCODEC    REQUIRED libavcodec)
@@ -15,16 +15,37 @@ pkg_check_modules(AVFORMAT   REQUIRED libavformat)
 pkg_check_modules(AVUTIL     REQUIRED libavutil)
 pkg_check_modules(SWRESAMPLE REQUIRED libswresample)
 
-add_executable(manalysis
-    src/main.cpp
+# ── qm-dsp (BPM tempo tracker, copied from Mixxx) ────────────────────────────
+set(QM_DSP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/qm-dsp)
+
+add_library(qm-dsp STATIC
+    ${QM_DSP_DIR}/dsp/onsets/DetectionFunction.cpp
+    ${QM_DSP_DIR}/dsp/onsets/PeakPicking.cpp
+    ${QM_DSP_DIR}/dsp/phasevocoder/PhaseVocoder.cpp
+    ${QM_DSP_DIR}/dsp/signalconditioning/DFProcess.cpp
+    ${QM_DSP_DIR}/dsp/signalconditioning/Filter.cpp
+    ${QM_DSP_DIR}/dsp/signalconditioning/FiltFilt.cpp
+    ${QM_DSP_DIR}/dsp/signalconditioning/Framer.cpp
+    ${QM_DSP_DIR}/dsp/tempotracking/TempoTrackV2.cpp
+    ${QM_DSP_DIR}/dsp/transforms/FFT.cpp
+    ${QM_DSP_DIR}/maths/MathUtilities.cpp
+    ${QM_DSP_DIR}/ext/kissfft/kiss_fft.c
+    ${QM_DSP_DIR}/ext/kissfft/tools/kiss_fftr.c
+)
+target_include_directories(qm-dsp PUBLIC ${QM_DSP_DIR})
+target_compile_definitions(qm-dsp PRIVATE kiss_fft_scalar=double)
+target_compile_options(qm-dsp PRIVATE -O2 -w) # suppress qm-dsp warnings
+
+# ── Shared analysis sources ───────────────────────────────────────────────────
+set(ANALYSIS_SOURCES
     src/AudioDecoder.cpp
-    src/BpmAnalyzer.cpp
+    src/DownmixAndOverlapHelper.cpp
+    src/QmBpmAnalyzer.cpp
     src/KeyAnalyzer.cpp
     src/GainAnalyzer.cpp
 )
 
-target_include_directories(manalysis PRIVATE
-    ${SOUNDTOUCH_INCLUDE_DIRS}
+set(ANALYSIS_INCLUDE_DIRS
     ${KEYFINDER_INCLUDE_DIRS}
     ${EBUR128_INCLUDE_DIRS}
     ${AVCODEC_INCLUDE_DIRS}
@@ -33,8 +54,8 @@ target_include_directories(manalysis PRIVATE
     ${SWRESAMPLE_INCLUDE_DIRS}
 )
 
-target_link_libraries(manalysis PRIVATE
-    ${SOUNDTOUCH_LIBRARIES}
+set(ANALYSIS_LIBS
+    qm-dsp
     ${KEYFINDER_LIBRARIES}
     ${EBUR128_LIBRARIES}
     ${AVCODEC_LIBRARIES}
@@ -43,4 +64,19 @@ target_link_libraries(manalysis PRIVATE
     ${SWRESAMPLE_LIBRARIES}
 )
 
+# ── Main executable ───────────────────────────────────────────────────────────
+add_executable(manalysis src/main.cpp ${ANALYSIS_SOURCES})
+target_include_directories(manalysis PRIVATE ${ANALYSIS_INCLUDE_DIRS})
+target_link_libraries(manalysis PRIVATE ${ANALYSIS_LIBS})
 target_compile_options(manalysis PRIVATE -Wall -Wextra -O2)
+
+# ── Tests ─────────────────────────────────────────────────────────────────────
+enable_testing()
+
+add_executable(manalysis-test tests/analysis_test.cpp ${ANALYSIS_SOURCES})
+target_include_directories(manalysis-test PRIVATE ${ANALYSIS_INCLUDE_DIRS} src)
+target_link_libraries(manalysis-test PRIVATE ${ANALYSIS_LIBS} GTest::gtest GTest::gtest_main)
+target_compile_options(manalysis-test PRIVATE -Wall -O2)
+
+add_test(NAME AnalysisTest COMMAND manalysis-test)
+

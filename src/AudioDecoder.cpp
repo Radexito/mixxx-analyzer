@@ -88,6 +88,8 @@ bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& err
     // --- Set up resampler: any input format -> stereo interleaved float32 ---
     SwrContext* rawSwr = nullptr;
 
+#if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(57, 28, 100)
+    // FFmpeg >= 5.1: new channel layout API
     AVChannelLayout outLayout = AV_CHANNEL_LAYOUT_STEREO;
     if (int err = swr_alloc_set_opts2(&rawSwr, &outLayout, AV_SAMPLE_FMT_FLT, outSampleRate,
                                       &codecCtx->ch_layout, codecCtx->sample_fmt,
@@ -96,6 +98,18 @@ bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& err
         error = "swr_alloc_set_opts2: " + avError(err);
         return false;
     }
+#else
+    // FFmpeg < 5.1: legacy channel layout API
+    rawSwr = swr_alloc_set_opts(
+        nullptr, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLT, outSampleRate,
+        static_cast<int64_t>(codecCtx->channel_layout ? codecCtx->channel_layout
+                                                       : av_get_default_channel_layout(
+                                                             codecCtx->channels)),
+        codecCtx->sample_fmt, codecCtx->sample_rate, 0, nullptr);
+        error = "swr_alloc_set_opts failed";
+        return false;
+    }
+#endif
     std::unique_ptr<SwrContext, SwrContextDeleter> swr(rawSwr);
 
     if (int err = swr_init(swr.get()); err < 0) {

@@ -116,56 +116,120 @@ double roundBpmWithinRange(double minBpm, double center, double maxBpm) {
 }
 
 // Port of BeatUtils::makeConstBpm (dominant region → rounded BPM).
+// Exact translation of mixxx/src/track/beatutils.cpp BeatUtils::makeConstBpm.
 double makeConstBpm(const std::vector<ConstRegion>& regions, int sampleRate) {
     if (regions.size() < 2) return 0.0;
 
-    // Find the longest constant region.
-    int midIdx = 0;
-    double longestLength = 0;
-    double longestBeatLength = 0;
+    // ── Step 1: Find the longest constant region ────────────────────────────
+    int midRegionIndex = 0;
+    double longestRegionLength = 0.0;
+    double longestRegionBeatLength = 0.0;
 
     for (int i = 0; i < (int)regions.size() - 1; ++i) {
         double length = regions[i + 1].firstBeat - regions[i].firstBeat;
-        if (length > longestLength) {
-            longestLength     = length;
-            longestBeatLength = regions[i].beatLength;
-            midIdx = i;
+        if (length > longestRegionLength) {
+            longestRegionLength    = length;
+            longestRegionBeatLength = regions[i].beatLength;
+            midRegionIndex         = i;
         }
     }
-    if (longestLength == 0.0) return 0.0;
+    if (longestRegionLength == 0.0) return 0.0;
 
-    int numBeats = static_cast<int>(longestLength / longestBeatLength + 0.5);
-    if (numBeats < 1) return 0.0;
+    int longestRegionNumberOfBeats =
+            static_cast<int>(longestRegionLength / longestRegionBeatLength + 0.5);
+    double longestRegionBeatLengthMin = longestRegionBeatLength -
+            (kMaxSecsPhaseError * sampleRate) / longestRegionNumberOfBeats;
+    double longestRegionBeatLengthMax = longestRegionBeatLength +
+            (kMaxSecsPhaseError * sampleRate) / longestRegionNumberOfBeats;
 
-    double tolerance    = (kMaxSecsPhaseError * sampleRate) / numBeats;
-    double beatLenMin   = longestBeatLength - tolerance;
-    double beatLenMax   = longestBeatLength + tolerance;
+    int startRegionIndex = midRegionIndex;
 
-    // Try to extend the dominant region by merging compatible adjacent regions
-    // (simplified: only merge head/tail – matches Mixxx's intent closely).
-    for (int i = midIdx - 1; i >= 0; --i) {
-        double len    = regions[i + 1].firstBeat - regions[i].firstBeat;
-        int    nb     = static_cast<int>(len / regions[i].beatLength + 0.5);
-        if (nb < kMinRegionBeatCount) continue;
-        double tol    = (kMaxSecsPhaseError * sampleRate) / nb;
-        if (regions[i].beatLength < beatLenMin || regions[i].beatLength > beatLenMax) break;
-        double newLen = regions[midIdx + 1].firstBeat - regions[i].firstBeat;
-        int    newNb  = static_cast<int>(newLen / longestBeatLength + 0.5);
-        double newLen2 = newLen / newNb;
-        if (newLen2 > beatLenMin && newLen2 < beatLenMax) {
-            longestLength     = newLen;
-            longestBeatLength = newLen2;
-            numBeats          = newNb;
-            beatLenMin        = longestBeatLength - (kMaxSecsPhaseError * sampleRate) / numBeats;
-            beatLenMax        = longestBeatLength + (kMaxSecsPhaseError * sampleRate) / numBeats;
+    // ── Step 2: Extend backward to the earliest compatible region ───────────
+    for (int i = 0; i < midRegionIndex; ++i) {
+        const double length =
+                regions[i + 1].firstBeat - regions[i].firstBeat;
+        const int numberOfBeats =
+                static_cast<int>(length / regions[i].beatLength + 0.5);
+        if (numberOfBeats < kMinRegionBeatCount) continue;
+
+        const double thisMin = regions[i].beatLength -
+                (kMaxSecsPhaseError * sampleRate) / numberOfBeats;
+        const double thisMax = regions[i].beatLength +
+                (kMaxSecsPhaseError * sampleRate) / numberOfBeats;
+
+        if (longestRegionBeatLength <= thisMin || longestRegionBeatLength >= thisMax)
+            continue;
+
+        // Combined span: region i → end of midRegion
+        const double newLength =
+                regions[midRegionIndex + 1].firstBeat - regions[i].firstBeat;
+        const double beatLenMin = std::max(longestRegionBeatLengthMin, thisMin);
+        const double beatLenMax = std::min(longestRegionBeatLengthMax, thisMax);
+        const int maxBeats = static_cast<int>(std::round(newLength / beatLenMin));
+        const int minBeats = static_cast<int>(std::round(newLength / beatLenMax));
+        if (minBeats != maxBeats) continue; // ambiguous beat count
+
+        const int nb = minBeats;
+        const double newBeatLength = newLength / nb;
+        if (newBeatLength > longestRegionBeatLengthMin &&
+                newBeatLength < longestRegionBeatLengthMax) {
+            longestRegionLength        = newLength;
+            longestRegionBeatLength    = newBeatLength;
+            longestRegionNumberOfBeats = nb;
+            longestRegionBeatLengthMin = longestRegionBeatLength -
+                    (kMaxSecsPhaseError * sampleRate) / longestRegionNumberOfBeats;
+            longestRegionBeatLengthMax = longestRegionBeatLength +
+                    (kMaxSecsPhaseError * sampleRate) / longestRegionNumberOfBeats;
+            startRegionIndex = i;
+            break;
         }
-        (void)tol;
-        break;
     }
 
-    double minBpm    = 60.0 * sampleRate / beatLenMax;
-    double maxBpm    = 60.0 * sampleRate / beatLenMin;
-    double centerBpm = 60.0 * sampleRate / longestBeatLength;
+    // ── Step 3: Extend forward to the latest compatible region ──────────────
+    for (int i = (int)regions.size() - 2; i > midRegionIndex; --i) {
+        const double length =
+                regions[i + 1].firstBeat - regions[i].firstBeat;
+        const int numberOfBeats =
+                static_cast<int>(length / regions[i].beatLength + 0.5);
+        if (numberOfBeats < kMinRegionBeatCount) continue;
+
+        const double thisMin = regions[i].beatLength -
+                (kMaxSecsPhaseError * sampleRate) / numberOfBeats;
+        const double thisMax = regions[i].beatLength +
+                (kMaxSecsPhaseError * sampleRate) / numberOfBeats;
+
+        if (longestRegionBeatLength <= thisMin || longestRegionBeatLength >= thisMax)
+            continue;
+
+        // Combined span: startRegion → end of region i
+        const double newLength =
+                regions[i + 1].firstBeat - regions[startRegionIndex].firstBeat;
+        const double minBeatLen = std::max(longestRegionBeatLengthMin, thisMin);
+        const double maxBeatLen = std::min(longestRegionBeatLengthMax, thisMax);
+        const int maxBeats = static_cast<int>(std::round(newLength / minBeatLen));
+        const int minBeats = static_cast<int>(std::round(newLength / maxBeatLen));
+        if (minBeats != maxBeats) continue;
+
+        const int nb = minBeats;
+        const double newBeatLength = newLength / nb;
+        if (newBeatLength > longestRegionBeatLengthMin &&
+                newBeatLength < longestRegionBeatLengthMax) {
+            longestRegionLength        = newLength;
+            longestRegionBeatLength    = newBeatLength;
+            longestRegionNumberOfBeats = nb;
+            break;
+        }
+    }
+
+    // ── Step 4: Recompute tight tolerance and snap BPM ───────────────────────
+    longestRegionBeatLengthMin = longestRegionBeatLength -
+            (kMaxSecsPhaseError * sampleRate) / longestRegionNumberOfBeats;
+    longestRegionBeatLengthMax = longestRegionBeatLength +
+            (kMaxSecsPhaseError * sampleRate) / longestRegionNumberOfBeats;
+
+    const double minBpm    = 60.0 * sampleRate / longestRegionBeatLengthMax;
+    const double maxBpm    = 60.0 * sampleRate / longestRegionBeatLengthMin;
+    const double centerBpm = 60.0 * sampleRate / longestRegionBeatLength;
     return roundBpmWithinRange(minBpm, centerBpm, maxBpm);
 }
 

@@ -7,13 +7,14 @@
 #include "GainAnalyzer.h"
 #include "QmBpmAnalyzer.h"
 #include "QmKeyAnalyzer.h"
+#include "SilenceAnalyzer.h"
 
 namespace {
 
 void printUsage(const char* argv0) {
     std::fprintf(stderr, "Usage: %s <audiofile> [audiofile...]\n", argv0);
     std::fprintf(stderr, "\nAnalyzes audio tracks and outputs BPM, key, and gain.\n");
-    std::fprintf(stderr, "\nOutputs tab-separated: file\\tBPM\\tKey\\tCamelot\\tLUFS\\tReplayGain\n");
+    std::fprintf(stderr, "\nOutputs tab-separated: file\\tBPM\\tKey\\tCamelot\\tLUFS\\tReplayGain\\tIntro\\tOutro\n");
 }
 
 bool analyzeFile(const std::string& path) {
@@ -23,9 +24,10 @@ bool analyzeFile(const std::string& path) {
     int channels = 0;
     bool initialized = false;
 
-    std::unique_ptr<QmBpmAnalyzer> bpm;
-    std::unique_ptr<QmKeyAnalyzer> key;
-    std::unique_ptr<GainAnalyzer> gain;
+    std::unique_ptr<QmBpmAnalyzer>   bpm;
+    std::unique_ptr<QmKeyAnalyzer>   key;
+    std::unique_ptr<GainAnalyzer>    gain;
+    std::unique_ptr<SilenceAnalyzer> silence;
 
     std::string decodeError;
     bool ok = AudioDecoder::decode(
@@ -34,14 +36,16 @@ bool analyzeFile(const std::string& path) {
                 if (!initialized) {
                     sampleRate = info.sampleRate;
                     channels = info.channels;
-                    bpm  = std::make_unique<QmBpmAnalyzer>(sampleRate);
-                    key  = std::make_unique<QmKeyAnalyzer>(sampleRate);
-                    gain = std::make_unique<GainAnalyzer>(sampleRate);
+                    bpm     = std::make_unique<QmBpmAnalyzer>(sampleRate);
+                    key     = std::make_unique<QmKeyAnalyzer>(sampleRate);
+                    gain    = std::make_unique<GainAnalyzer>(sampleRate);
+                    silence = std::make_unique<SilenceAnalyzer>(sampleRate, channels);
                     initialized = true;
                 }
                 bpm->feed(samples, numFrames);
                 key->feed(samples, numFrames);
                 gain->feed(samples, numFrames);
+                silence->feed(samples, numFrames);
             },
             decodeError);
 
@@ -58,24 +62,37 @@ bool analyzeFile(const std::string& path) {
     QmKeyAnalyzer::Result detectedKey = key->result();
     GainAnalyzer::Result gainResult{};
     bool gainOk = gain->result(gainResult);
+    SilenceAnalyzer::Result silenceResult = silence->result();
+
+    auto fmtTime = [](double secs) -> std::string {
+        int m = static_cast<int>(secs) / 60;
+        double s = secs - m * 60.0;
+        char buf[32];
+        std::snprintf(buf, sizeof(buf), "%d:%05.2f", m, s);
+        return buf;
+    };
 
     // Print header once (detect by checking if first file)
     // We just print the result line
     if (detectedBpm > 0.0f) {
-        std::printf("%-50s  BPM: %6.2f  Key: %-10s (%3s)  LUFS: %7.2f  RG: %+.2f dB\n",
+        std::printf("%-50s  BPM: %6.2f  Key: %-10s (%3s)  LUFS: %7.2f  RG: %+.2f dB  Intro: %s  Outro: %s\n",
                 path.c_str(),
                 detectedBpm,
                 detectedKey.key.c_str(),
                 detectedKey.camelot.c_str(),
                 gainOk ? gainResult.lufs : 0.0,
-                gainOk ? gainResult.replayGain : 0.0);
+                gainOk ? gainResult.replayGain : 0.0,
+                fmtTime(silenceResult.introSecs).c_str(),
+                fmtTime(silenceResult.outroSecs).c_str());
     } else {
-        std::printf("%-50s  BPM: (undetected)  Key: %-10s (%3s)  LUFS: %7.2f  RG: %+.2f dB\n",
+        std::printf("%-50s  BPM: (undetected)  Key: %-10s (%3s)  LUFS: %7.2f  RG: %+.2f dB  Intro: %s  Outro: %s\n",
                 path.c_str(),
                 detectedKey.key.c_str(),
                 detectedKey.camelot.c_str(),
                 gainOk ? gainResult.lufs : 0.0,
-                gainOk ? gainResult.replayGain : 0.0);
+                gainOk ? gainResult.replayGain : 0.0,
+                fmtTime(silenceResult.introSecs).c_str(),
+                fmtTime(silenceResult.outroSecs).c_str());
     }
 
     return true;

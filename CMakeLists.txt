@@ -47,6 +47,7 @@ set(ANALYSIS_SOURCES
     src/QmBpmAnalyzer.cpp
     src/QmKeyAnalyzer.cpp
     src/GainAnalyzer.cpp
+    src/SilenceAnalyzer.cpp
 )
 
 set(ANALYSIS_INCLUDE_DIRS

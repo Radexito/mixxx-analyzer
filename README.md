@@ -1,8 +1,49 @@
 # mixxx-analyzer
 
+[![PyPI](https://img.shields.io/pypi/v/mixxx-analyzer)](https://pypi.org/project/mixxx-analyzer/)
+
 A fast CLI tool for analyzing audio tracks. Outputs **BPM**, **musical key** (with Camelot wheel notation), **gain** (LUFS + ReplayGain), and **intro/outro timestamps** (first/last non-silent frame).
 
 Built as a standalone project using the **exact same analysis code** as [Mixxx](https://mixxx.org/) — no Qt, no Mixxx build required. The BPM and key detection are direct ports of Mixxx's `AnalyzerQueenMaryBeats` and `AnalyzerQueenMaryKey`, using the [qm-dsp](https://github.com/c4dm/qm-dsp) library copied into the repo.
+
+## Python usage
+
+Install from PyPI (includes the native binary — no separate install needed):
+
+```bash
+pip install mixxx-analyzer
+```
+
+```python
+from mixxx_analyzer import analyze, analyze_many
+
+# Single file
+result = analyze("/path/to/track.mp3")
+print(f"BPM:        {result.bpm:.1f}")
+print(f"Key:        {result.key}  ({result.camelot})")
+print(f"LUFS:       {result.lufs:.1f}")
+print(f"ReplayGain: {result.replay_gain:.2f} dB")
+print(f"Intro:      {result.intro_secs:.1f}s")
+print(f"Outro:      {result.outro_secs:.1f}s")
+
+# Multiple files at once (single binary invocation — more efficient)
+results = analyze_many(["/path/to/a.mp3", "/path/to/b.flac"])
+for r in results:
+    print(f"{r.file}: {r.bpm:.1f} BPM, {r.camelot}")
+```
+
+### `AnalysisResult` fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `file` | `str` | Path to the analyzed file |
+| `bpm` | `float \| None` | Detected BPM (None if detection failed) |
+| `key` | `str` | Musical key, e.g. `"D minor"` |
+| `camelot` | `str` | Camelot wheel code, e.g. `"7A"` |
+| `lufs` | `float` | Integrated loudness in LUFS |
+| `replay_gain` | `float` | ReplayGain 2.0 adjustment in dB |
+| `intro_secs` | `float` | First non-silent frame in seconds |
+| `outro_secs` | `float` | Last non-silent frame in seconds |
 
 ## Example output
 

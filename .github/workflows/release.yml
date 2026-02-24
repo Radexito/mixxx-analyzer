@@ -81,46 +81,17 @@ jobs:
           chmod 755 python/mixxx_analyzer/bin/mixxx-analyzer
           python -m pip install build delocate
           cd python
-          python -m build --wheel
-          python -m delocate.cmd.delocate_wheel -w dist/repaired dist/*.whl
+          # Force arm64-specific wheel tag (avoids universal2/arm64 mismatch)
+          MACOSX_DEPLOYMENT_TARGET=11.0 \
+            _PYTHON_HOST_PLATFORM=macosx-11.0-arm64 \
+            python -m build --wheel
+          python -m delocate.cmd.delocate_wheel \
+            --require-archs arm64 \
+            -w dist/repaired dist/*.whl
 
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-macos-arm64
-          path: python/dist/repaired/*.whl
-
-  # ── macOS x86_64 (Intel) ─────────────────────────────────────────────────────
-  wheel-macos-x86_64:
-    needs: setup
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install deps
-        run: brew install cmake ffmpeg libebur128
-
-      - name: Build binary
-        run: |
-          export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
-          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
-          cmake --build build --parallel $(sysctl -n hw.logicalcpu)
-
-      - name: Bundle dylibs + build wheel
-        run: |
-          cp build/mixxx-analyzer python/mixxx_analyzer/bin/
-          chmod 755 python/mixxx_analyzer/bin/mixxx-analyzer
-          python -m pip install build delocate
-          cd python
-          python -m build --wheel
-          python -m delocate.cmd.delocate_wheel -w dist/repaired dist/*.whl
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wheel-macos-x86_64
           path: python/dist/repaired/*.whl
 
   # ── Windows x86_64 ───────────────────────────────────────────────────────────
@@ -130,25 +101,45 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install vcpkg deps
-        run: |
-          vcpkg install ffmpeg:x64-windows libebur128:x64-windows
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Enable vcpkg binary cache so libebur128 is fast on repeat runs
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Install libebur128 (vcpkg, cached)
+        run: vcpkg install libebur128:x64-windows
         env:
-          VCPKG_DEFAULT_TRIPLET: x64-windows
+          VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+
+      - name: Download pre-built FFmpeg (BtbN shared)
+        shell: pwsh
+        run: |
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl-shared.zip"
+          Invoke-WebRequest -Uri $url -OutFile ffmpeg.zip -MaximumRetryCount 3
+          Expand-Archive ffmpeg.zip -DestinationPath C:\ffmpeg-extract
+          $dir = (Get-ChildItem -Directory C:\ffmpeg-extract)[0].FullName
+          "FFMPEG_ROOT=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Build binary
         shell: cmd
         run: |
-          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF ^
+          cmake -B build -S . ^
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF ^
             -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake ^
-            -DVCPKG_TARGET_TRIPLET=x64-windows
+            -DVCPKG_TARGET_TRIPLET=x64-windows ^
+            -DCMAKE_PREFIX_PATH="%FFMPEG_ROOT%;C:/vcpkg/installed/x64-windows"
           cmake --build build --config Release --parallel
 
       - name: Bundle DLLs
         shell: pwsh
         run: |
-          # Add vcpkg bin to PATH so Find-Dll locates the DLLs
-          $env:PATH = "C:\vcpkg\installed\x64-windows\bin;$env:PATH"
+          $env:PATH = "C:\vcpkg\installed\x64-windows\bin;$env:FFMPEG_ROOT\bin;$env:PATH"
           New-Item -ItemType Directory -Force python/mixxx_analyzer/bin | Out-Null
           pwsh scripts/bundle_windows.ps1 `
             build/Release/mixxx-analyzer.exe `
@@ -157,7 +148,7 @@ jobs:
       - name: Build wheel
         shell: pwsh
         run: |
-          pip install build
+          python -m pip install build
           cd python
           python -m build --wheel
 
@@ -168,7 +159,7 @@ jobs:
 
   # ── Create GitHub release ─────────────────────────────────────────────────────
   create-release:
-    needs: [setup, wheel-linux, wheel-macos-arm64, wheel-macos-x86_64, wheel-windows]
+    needs: [setup, wheel-linux, wheel-macos-arm64, wheel-windows]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -208,8 +199,7 @@ jobs:
             | File | Platform |
             |------|----------|
             | `*linux_x86_64.whl` | Linux x86_64 (Ubuntu 22.04+) |
-            | `*macosx_*_arm64.whl` | macOS Apple Silicon |
-            | `*macosx_*_x86_64.whl` | macOS Intel |
+            | `*macosx_11_0_arm64.whl` | macOS Apple Silicon |
             | `*win_amd64.whl` | Windows x86_64 |
 
             All wheels are self-contained — no system dependencies required.

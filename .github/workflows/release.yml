@@ -5,45 +5,172 @@ on:
     branches: [main]
 
 jobs:
-  release:
-    name: Build & release
+  # ── Shared release tag ────────────────────────────────────────────────────────
+  setup:
     runs-on: ubuntu-22.04
-    permissions:
-      contents: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Generate release tag
+        id: tag
+        run: echo "tag=build-$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
+  # ── Linux x86_64 wheel (Docker build + patchelf bundling) ────────────────────
+  wheel-linux:
+    needs: setup
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Build image
-        run: docker build -t mixxx-analyzer-build .
-
-      - name: Run tests
+      - name: Build & test (Docker)
         run: |
+          docker build -t mixxx-analyzer-build .
           docker run --rm mixxx-analyzer-build \
             bash -c "cd /src && bash tests/download_assets.sh && build/mixxx-analyzer-test"
 
       - name: Extract binary
         run: |
           id=$(docker create mixxx-analyzer-build)
-          docker cp "$id":/src/build/mixxx-analyzer ./mixxx-analyzer-linux-x86_64
+          docker cp "$id":/src/build/mixxx-analyzer ./mixxx-analyzer
           docker rm "$id"
-          chmod +x mixxx-analyzer-linux-x86_64
 
-      - name: Generate release tag
-        id: tag
+      - name: Bundle shared libs
         run: |
-          echo "tag=build-$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          sudo apt-get install -y patchelf
+          bash scripts/bundle_linux.sh ./mixxx-analyzer python/mixxx_analyzer/bin/
+
+      - name: Build wheel
+        run: |
+          pip install build
+          cd python && python3 -m build --wheel
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-linux-x86_64
+          path: python/dist/*.whl
+
+      # Also keep the raw binary for direct download
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-linux-x86_64
+          path: mixxx-analyzer
+
+  # ── macOS arm64 wheel (macos-14 = Apple Silicon) ─────────────────────────────
+  wheel-macos-arm64:
+    needs: setup
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: brew install cmake ffmpeg libebur128
+
+      - name: Build C++ binary
+        run: |
+          export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+          cmake --build build --parallel $(sysctl -n hw.logicalcpu)
+
+      - name: Bundle dylibs + build wheel
+        run: |
+          cp build/mixxx-analyzer python/mixxx_analyzer/bin/
+          chmod 755 python/mixxx_analyzer/bin/mixxx-analyzer
+          pip install build delocate
+          cd python
+          python3 -m build --wheel
+          delocate-wheel -w dist/repaired dist/*.whl
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-macos-arm64
+          path: python/dist/repaired/*.whl
+
+  # ── macOS x86_64 wheel (macos-13 = Intel) ────────────────────────────────────
+  wheel-macos-x86_64:
+    needs: setup
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: brew install cmake ffmpeg libebur128
+
+      - name: Build C++ binary
+        run: |
+          export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+          cmake --build build --parallel $(sysctl -n hw.logicalcpu)
+
+      - name: Bundle dylibs + build wheel
+        run: |
+          cp build/mixxx-analyzer python/mixxx_analyzer/bin/
+          chmod 755 python/mixxx_analyzer/bin/mixxx-analyzer
+          pip install build delocate
+          cd python
+          python3 -m build --wheel
+          delocate-wheel -w dist/repaired dist/*.whl
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-macos-x86_64
+          path: python/dist/repaired/*.whl
+
+  # ── Windows x86_64 wheel (TODO) ───────────────────────────────────────────────
+  wheel-windows:
+    needs: setup
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Not yet implemented
+        run: echo "Windows build not yet implemented. Contributions welcome!"
+        shell: bash
+
+  # ── Create GitHub release with all wheels ────────────────────────────────────
+  create-release:
+    needs: [setup, wheel-linux, wheel-macos-arm64, wheel-macos-x86_64]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "wheel-*"
+          path: dist/
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary-linux-x86_64
+          path: dist/
+
+      - name: Rename raw binary
+        run: mv dist/mixxx-analyzer dist/mixxx-analyzer-linux-x86_64 && chmod +x dist/mixxx-analyzer-linux-x86_64
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: "mixxx-analyzer ${{ steps.tag.outputs.tag }}"
+          tag_name: ${{ needs.setup.outputs.tag }}
+          name: "mixxx-analyzer ${{ needs.setup.outputs.tag }}"
           body: |
             Automated release from commit ${{ github.sha }}
 
             ${{ github.event.head_commit.message }}
-          files: mixxx-analyzer-linux-x86_64
+
+            ## Python wheels
+
+            Install the wheel for your platform:
+            ```bash
+            pip install mixxx_analyzer-*-<platform>.whl
+            ```
+
+            | File | Platform |
+            |------|----------|
+            | `*linux_x86_64.whl` | Linux x86_64 (glibc ≥ 2.35 / Ubuntu 22.04+) |
+            | `*macosx_*_arm64.whl` | macOS Apple Silicon |
+            | `*macosx_*_x86_64.whl` | macOS Intel |
+
+            All wheels are self-contained — no system dependencies required.
+          files: dist/*
           fail_on_unmatched_files: true

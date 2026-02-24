@@ -6,3 +6,10 @@ build/
 compile_commands.json
 tests/assets/*.mp3
 tests/assets/*.flac
+
+# Python wheel build artifacts
+python/dist/
+python/build/
+python/*.egg-info/
+python/mixxx_analyzer/bin/*
+!python/mixxx_analyzer/bin/.gitkeep

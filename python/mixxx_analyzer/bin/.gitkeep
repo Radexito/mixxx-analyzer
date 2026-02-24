@@ -1,0 +1,2 @@
+# Platform-specific binary — populated at wheel build time.
+# Do not commit real binaries here.

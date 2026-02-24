@@ -72,6 +72,9 @@ add_executable(mixxx-analyzer src/main.cpp ${ANALYSIS_SOURCES})
 target_include_directories(mixxx-analyzer PRIVATE ${ANALYSIS_INCLUDE_DIRS})
 target_link_libraries(mixxx-analyzer PRIVATE ${ANALYSIS_LIBS})
 target_compile_options(mixxx-analyzer PRIVATE -Wall -Wextra -O2)
+if(UNIX AND NOT APPLE)
+    target_link_options(mixxx-analyzer PRIVATE -static-libstdc++ -static-libgcc)
+endif()
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 enable_testing()

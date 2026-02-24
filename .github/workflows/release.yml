@@ -15,45 +15,55 @@ jobs:
         id: tag
         run: echo "tag=build-$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-  # ── Linux x86_64 wheel ────────────────────────────────────────────────────────
+  # ── Linux x86_64 ──────────────────────────────────────────────────────────────
   wheel-linux:
     needs: setup
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build & test (Docker)
+      - name: Build Docker image & run tests
         run: |
           docker build -t mixxx-analyzer-build .
           docker run --rm mixxx-analyzer-build \
             bash -c "cd /src && bash tests/download_assets.sh && build/mixxx-analyzer-test"
 
-      - name: Extract binary
+      # auditwheel runs INSIDE Docker where all .so files are present so ldd resolves correctly.
+      - name: Build manylinux wheel (inside Docker)
         run: |
-          id=$(docker create mixxx-analyzer-build)
-          docker cp "$id":/src/build/mixxx-analyzer ./mixxx-analyzer
-          docker rm "$id"
-          chmod +x mixxx-analyzer
+          docker run --name wheel-run mixxx-analyzer-build bash -c "
+            pip3 install build auditwheel patchelf --quiet &&
+            mkdir -p /src/python/mixxx_analyzer/bin &&
+            cp /src/build/mixxx-analyzer /src/python/mixxx_analyzer/bin/ &&
+            chmod +x /src/python/mixxx_analyzer/bin/mixxx-analyzer &&
+            cd /src/python &&
+            python3 -m build --wheel &&
+            auditwheel repair --plat manylinux_2_35_x86_64 dist/*.whl -w dist/repaired/"
+          mkdir -p python/dist/repaired
+          docker cp wheel-run:/src/python/dist/repaired/. python/dist/repaired/
+          docker rm wheel-run
 
-      - name: Bundle shared libs
+      # Standalone raw binary (bundled libs, RPATH=$ORIGIN) for direct download.
+      - name: Build standalone binary tarball
         run: |
-          sudo apt-get install -y patchelf
-          bash scripts/bundle_linux.sh ./mixxx-analyzer python/mixxx_analyzer/bin/
-
-      - name: Build wheel
-        run: |
-          pip install build
-          cd python && python3 -m build --wheel
+          docker run --name raw-run mixxx-analyzer-build bash -c "
+            apt-get install -y patchelf -q &&
+            mkdir -p /src/bundle &&
+            bash /src/scripts/bundle_linux.sh /src/build/mixxx-analyzer /src/bundle"
+          mkdir -p linux-bundle
+          docker cp raw-run:/src/bundle/. linux-bundle/
+          docker rm raw-run
+          tar -czf mixxx-analyzer-linux-x86_64.tar.gz -C linux-bundle .
 
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-linux-x86_64
-          path: python/dist/*.whl
+          path: python/dist/repaired/*.whl
 
       - uses: actions/upload-artifact@v4
         with:
           name: binary-linux-x86_64
-          path: mixxx-analyzer
+          path: mixxx-analyzer-linux-x86_64.tar.gz
 
   # ── macOS arm64 (Apple Silicon) ───────────────────────────────────────────────
   wheel-macos-arm64:
@@ -75,13 +85,20 @@ jobs:
           cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
           cmake --build build --parallel $(sysctl -n hw.logicalcpu)
 
-      - name: Bundle dylibs + build wheel
+      - name: Bundle dylibs, build wheel + standalone binary
         run: |
           cp build/mixxx-analyzer python/mixxx_analyzer/bin/
           chmod 755 python/mixxx_analyzer/bin/mixxx-analyzer
           python -m pip install build delocate
+
+          # Standalone binary: bundle dylibs next to the executable
+          python -m delocate.cmd.delocate_path \
+            -L python/mixxx_analyzer/bin/ \
+            python/mixxx_analyzer/bin/
+          zip -j mixxx-analyzer-macos-arm64.zip python/mixxx_analyzer/bin/*
+
+          # Wheel: build then repair (delocate-wheel re-bundles cleanly into .dylibs/)
           cd python
-          # Force arm64-specific wheel tag (avoids universal2/arm64 mismatch)
           MACOSX_DEPLOYMENT_TARGET=11.0 \
             _PYTHON_HOST_PLATFORM=macosx-11.0-arm64 \
             python -m build --wheel
@@ -94,6 +111,11 @@ jobs:
           name: wheel-macos-arm64
           path: python/dist/repaired/*.whl
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-macos-arm64
+          path: mixxx-analyzer-macos-arm64.zip
+
   # ── Windows x86_64 ───────────────────────────────────────────────────────────
   wheel-windows:
     needs: setup
@@ -105,7 +127,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Enable vcpkg binary cache so libebur128 is fast on repeat runs
       - uses: actions/github-script@v7
         with:
           script: |
@@ -152,10 +173,21 @@ jobs:
           cd python
           python -m build --wheel
 
+      - name: Create standalone binary zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path python/mixxx_analyzer/bin/* `
+            -DestinationPath mixxx-analyzer-windows-x86_64.zip
+
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-windows-x86_64
           path: python/dist/*.whl
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-windows-x86_64
+          path: mixxx-analyzer-windows-x86_64.zip
 
   # ── Create GitHub release ─────────────────────────────────────────────────────
   create-release:
@@ -174,11 +206,9 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: binary-linux-x86_64
+          pattern: "binary-*"
           path: dist/
-
-      - name: Rename raw binary
-        run: mv dist/mixxx-analyzer dist/mixxx-analyzer-linux-x86_64 && chmod +x dist/mixxx-analyzer-linux-x86_64
+          merge-multiple: true
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
@@ -190,7 +220,7 @@ jobs:
 
             ${{ github.event.head_commit.message }}
 
-            ## Python wheels
+            ## Python wheels (self-contained, no system deps)
 
             ```bash
             pip install mixxx_analyzer-*-<platform>.whl
@@ -198,22 +228,27 @@ jobs:
 
             | File | Platform |
             |------|----------|
-            | `*linux_x86_64.whl` | Linux x86_64 (Ubuntu 22.04+) |
+            | `*manylinux_2_35_x86_64.whl` | Linux x86_64 (glibc ≥ 2.35 / Ubuntu 22.04+) |
             | `*macosx_11_0_arm64.whl` | macOS Apple Silicon |
             | `*win_amd64.whl` | Windows x86_64 |
 
-            All wheels are self-contained — no system dependencies required.
+            ## Standalone binaries (extract and run directly)
+
+            | File | Platform |
+            |------|----------|
+            | `mixxx-analyzer-linux-x86_64.tar.gz` | Linux x86_64 |
+            | `mixxx-analyzer-macos-arm64.zip` | macOS Apple Silicon |
+            | `mixxx-analyzer-windows-x86_64.zip` | Windows x86_64 |
           files: dist/*
           fail_on_unmatched_files: true
-
 
   # ── Publish to PyPI ───────────────────────────────────────────────────────────
   publish-pypi:
     needs: [create-release, wheel-linux, wheel-macos-arm64, wheel-windows]
     runs-on: ubuntu-22.04
-    environment: pypi          # optional: add a GitHub env with required reviewers
+    environment: pypi
     permissions:
-      id-token: write          # needed for trusted publishing (OIDC)
+      id-token: write
     steps:
       - uses: actions/download-artifact@v4
         with:

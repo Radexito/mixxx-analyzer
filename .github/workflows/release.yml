@@ -17,19 +17,19 @@ jobs:
           fetch-depth: 0
 
       - name: Build image
-        run: docker build -t manalysis-build .
+        run: docker build -t mixxx-analyzer-build .
 
       - name: Run tests
         run: |
-          docker run --rm manalysis-build \
-            bash -c "cd /src && bash tests/download_assets.sh && build/manalysis-test"
+          docker run --rm mixxx-analyzer-build \
+            bash -c "cd /src && bash tests/download_assets.sh && build/mixxx-analyzer-test"
 
       - name: Extract binary
         run: |
-          id=$(docker create manalysis-build)
-          docker cp "$id":/src/build/manalysis ./manalysis-linux-x86_64
+          id=$(docker create mixxx-analyzer-build)
+          docker cp "$id":/src/build/mixxx-analyzer ./mixxx-analyzer-linux-x86_64
           docker rm "$id"
-          chmod +x manalysis-linux-x86_64
+          chmod +x mixxx-analyzer-linux-x86_64
 
       - name: Generate release tag
         id: tag
@@ -40,10 +40,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: "manalysis ${{ steps.tag.outputs.tag }}"
+          name: "mixxx-analyzer ${{ steps.tag.outputs.tag }}"
           body: |
             Automated release from commit ${{ github.sha }}
 
             ${{ github.event.head_commit.message }}
-          files: manalysis-linux-x86_64
+          files: mixxx-analyzer-linux-x86_64
           fail_on_unmatched_files: true

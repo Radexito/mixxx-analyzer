@@ -15,9 +15,9 @@
 #ifndef QM_DSP_CHROMAGRAM_H
 #define QM_DSP_CHROMAGRAM_H
 
-#include "dsp/transforms/FFT.h"
-#include "base/Window.h"
 #include "ConstantQ.h"
+#include "base/Window.h"
+#include "dsp/transforms/FFT.h"
 
 struct ChromaConfig {
     double FS;
@@ -28,56 +28,55 @@ struct ChromaConfig {
     MathUtilities::NormaliseType normalise;
 };
 
-class Chromagram 
-{
-public: 
-    Chromagram( ChromaConfig Config );
+class Chromagram {
+  public:
+    Chromagram(ChromaConfig Config);
     ~Chromagram();
 
     /**
      * Process a time-domain input signal of length equal to
      * getFrameSize().
-     * 
+     *
      * The returned buffer contains the chromagram values indexed by
      * bin, with the number of values corresponding to the BPO field
      * in the ChromaConfig supplied at construction. It is owned by
      * the Chromagram object and is reused from one process call to
      * the next.
      */
-    double *process(const double *data);
-    
+    double* process(const double* data);
+
     /**
      * Process a frequency-domain input signal generated from a
      * time-domain signal of length equal to getFrameSize() that has
      * been windowed and "fftshifted" to place the zero index in the
      * centre of the frame. The real and imag buffers must each
      * contain the full getFrameSize() frequency bins.
-     * 
+     *
      * The returned buffer contains the chromagram values indexed by
      * bin, with the number of values corresponding to the BPO field
      * in the ChromaConfig supplied at construction. It is owned by
      * the Chromagram object and is reused from one process call to
      * the next.
      */
-    double *process(const double *real, const double *imag);
-    
+    double* process(const double* real, const double* imag);
+
     void unityNormalise(double* src);
 
     // Complex arithmetic
-    double kabs( double real, double imag );
-        
+    double kabs(double real, double imag);
+
     // Results
-    int getK() { return m_uK;}
+    int getK() { return m_uK; }
     int getFrameSize() { return m_frameSize; }
-    int getHopSize()   { return m_hopSize; }
-    
-private:
-    int initialise( ChromaConfig Config );
+    int getHopSize() { return m_hopSize; }
+
+  private:
+    int initialise(ChromaConfig Config);
     int deInitialise();
 
-    Window<double> *m_window;
-    double *m_windowbuf;
-        
+    Window<double>* m_window;
+    double* m_windowbuf;
+
     double* m_chromadata;
     double m_FMin;
     double m_FMax;

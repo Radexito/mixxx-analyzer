@@ -17,25 +17,24 @@
 #define QM_DSP_CONSTANTQ_H
 
 #include <vector>
+
 #include "maths/MathAliases.h"
 #include "maths/MathUtilities.h"
 
 struct CQConfig {
-    double FS;         // samplerate
-    double min;        // minimum frequency
-    double max;        // maximum frequency
-    int BPO;           // bins per octave
-    double CQThresh;   // threshold
+    double FS;        // samplerate
+    double min;       // minimum frequency
+    double max;       // maximum frequency
+    int BPO;          // bins per octave
+    double CQThresh;  // threshold
 };
 
-class ConstantQ
-{
-public:
+class ConstantQ {
+  public:
     ConstantQ(CQConfig config);
     ~ConstantQ();
 
-    void process(const double* FFTRe, const double* FFTIm,
-                 double* CQRe, double* CQIm);
+    void process(const double* FFTRe, const double* FFTIm, double* CQRe, double* CQIm);
 
     double* process(const double* FFTData);
 
@@ -46,10 +45,10 @@ public:
     int getFFTLength() { return m_FFTLength; }
     int getHop() { return m_hop; }
 
-private:
+  private:
     void initialise(CQConfig config);
     void deInitialise();
-        
+
     double* m_CQdata;
     double m_FS;
     double m_FMin;
@@ -68,9 +67,7 @@ private:
         std::vector<double> real;
     };
 
-    SparseKernel *m_sparseKernel;
+    SparseKernel* m_sparseKernel;
 };
 
-
-#endif//CONSTANTQ_H
-
+#endif  // CONSTANTQ_H

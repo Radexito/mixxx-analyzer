@@ -23,9 +23,8 @@
 // 44100, but surely the fixed window sizes and comb filtering will
 // make it prefer double or half time when run at e.g. 96000?
 
-class TempoTrackV2
-{
-public:
+class TempoTrackV2 {
+  public:
     /**
      * Construct a tempo tracker that will operate on beat detection
      * function data calculated from audio at the given sample rate
@@ -38,21 +37,18 @@ public:
     ~TempoTrackV2();
 
     // Returned beat periods are given in df increment units; inputtempo and tempi in bpm
-    void calculateBeatPeriod(const std::vector<double> &df,
-                             std::vector<int> &beatPeriod) {
+    void calculateBeatPeriod(const std::vector<double> &df, std::vector<int> &beatPeriod) {
         calculateBeatPeriod(df, beatPeriod, 120.0, false);
     }
 
     // Returned beat periods are given in df increment units; inputtempo and tempi in bpm
     // MEPD 28/11/12 Expose inputtempo and constraintempo parameters
     // Note, if inputtempo = 120 and constraintempo = false, then functionality is as it was before
-    void calculateBeatPeriod(const std::vector<double> &df,
-                             std::vector<int> &beatPeriod,
+    void calculateBeatPeriod(const std::vector<double> &df, std::vector<int> &beatPeriod,
                              double inputtempo, bool constraintempo);
 
     // Returned beat positions are given in df increment units
-    void calculateBeats(const std::vector<double> &df,
-                        const std::vector<int> &beatPeriod,
+    void calculateBeats(const std::vector<double> &df, const std::vector<int> &beatPeriod,
                         std::vector<double> &beats) {
         calculateBeats(df, beatPeriod, beats, 0.9, 4.0);
     }
@@ -60,12 +56,10 @@ public:
     // Returned beat positions are given in df increment units
     // MEPD 28/11/12 Expose alpha and tightness parameters
     // Note, if alpha = 0.9 and tightness = 4, then functionality is as it was before
-    void calculateBeats(const std::vector<double> &df,
-                        const std::vector<int> &beatPeriod,
-                        std::vector<double> &beats,
-                        double alpha, double tightness);
+    void calculateBeats(const std::vector<double> &df, const std::vector<int> &beatPeriod,
+                        std::vector<double> &beats, double alpha, double tightness);
 
-private:
+  private:
     typedef std::vector<int> i_vec_t;
     typedef std::vector<std::vector<int> > i_mat_t;
     typedef std::vector<double> d_vec_t;

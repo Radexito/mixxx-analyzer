@@ -1,4 +1,4 @@
-# manalysis
+# mixxx-analyzer
 
 A fast CLI tool for analyzing audio tracks. Outputs **BPM**, **musical key** (with Camelot wheel notation), **gain** (LUFS + ReplayGain), and **intro/outro timestamps** (first/last non-silent frame).
 
@@ -13,7 +13,7 @@ track.mp3   BPM: 147.00  Key: D minor    ( 7A)  LUFS:   -9.88  RG: -8.12 dB  Int
 Multiple files are processed sequentially:
 
 ```
-$ manalysis ~/Music/*.mp3
+$ mixxx-analyzer ~/Music/*.mp3
 ~/Music/track1.mp3  BPM: 157.00  Key: F minor    ( 4A)  LUFS:   -9.10  RG: -8.90 dB  Intro: 0:00.00  Outro: 5:48.12
 ~/Music/track2.mp3  BPM: 147.00  Key: D minor    ( 7A)  LUFS:   -9.88  RG: -8.12 dB  Intro: 0:00.04  Outro: 6:12.90
 ~/Music/track3.mp3  BPM:  92.00  Key: G major    ( 9B)  LUFS:  -14.22  RG:  -3.78 dB  Intro: 0:00.00  Outro: 4:20.55
@@ -54,7 +54,7 @@ cmake -B build -S .
 cmake --build build
 ```
 
-The binary is `build/manalysis`. Optionally install system-wide:
+The binary is `build/mixxx-analyzer`. Optionally install system-wide:
 
 ```bash
 cmake --install build --prefix ~/.local
@@ -63,8 +63,8 @@ cmake --install build --prefix ~/.local
 ## Usage
 
 ```bash
-manalysis <file> [file ...]
-manalysis --help
+mixxx-analyzer <file> [file ...]
+mixxx-analyzer --help
 ```
 
 Exit code is 0 if all files were analyzed successfully, 1 if any failed.
@@ -74,7 +74,7 @@ Exit code is 0 if all files were analyzed successfully, 1 if any failed.
 Integration tests verify BPM and key results against Mixxx-detected reference values for 55 tracks:
 
 ```bash
-build/manalysis-test
+build/mixxx-analyzer-test
 ```
 
 ## Project structure

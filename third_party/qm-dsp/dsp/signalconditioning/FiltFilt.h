@@ -22,17 +22,14 @@
  * through a filter specified by the given filter parameters (see
  * Filter) and then processing it again in reverse.
  */
-class FiltFilt  
-{
-public:
+class FiltFilt {
+  public:
     FiltFilt(Filter::Parameters);
     virtual ~FiltFilt();
 
-    void process(const double *const QM_R__ src,
-                 double *const QM_R__ dst,
-                 const int length);
+    void process(const double *const QM_R__ src, double *const QM_R__ dst, const int length);
 
-private:
+  private:
     Filter m_filter;
     int m_ord;
 };

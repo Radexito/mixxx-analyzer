@@ -15,81 +15,73 @@
 
 #include "FiltFilt.h"
 
-FiltFilt::FiltFilt(Filter::Parameters parameters) :
-    m_filter(parameters)
-{
+FiltFilt::FiltFilt(Filter::Parameters parameters) : m_filter(parameters) {
     m_ord = m_filter.getOrder();
 }
 
-FiltFilt::~FiltFilt()
-{
-}
+FiltFilt::~FiltFilt() {}
 
-void FiltFilt::process(const double *const QM_R__ src,
-                       double *const QM_R__ dst,
-                       const int length)
-{       
+void FiltFilt::process(const double *const QM_R__ src, double *const QM_R__ dst, const int length) {
     int i;
 
-    if (length == 0) return;
+    if (length == 0)
+        return;
 
     int nFilt = m_ord + 1;
     int nFact = 3 * (nFilt - 1);
     int nExt = length + 2 * nFact;
 
-    double *filtScratchIn = new double[ nExt ];
-    double *filtScratchOut = new double[ nExt ];
-        
+    double *filtScratchIn = new double[nExt];
+    double *filtScratchOut = new double[nExt];
+
     for (i = 0; i < nExt; i++) {
-        filtScratchIn[ i ] = 0.0;
-        filtScratchOut[ i ] = 0.0;
+        filtScratchIn[i] = 0.0;
+        filtScratchOut[i] = 0.0;
     }
 
     // Edge transients reflection
-    double sample0 = 2 * src[ 0 ];
-    double sampleN = 2 * src[ length - 1 ];
+    double sample0 = 2 * src[0];
+    double sampleN = 2 * src[length - 1];
 
     int index = 0;
     for (i = nFact; i > 0; i--) {
         if (i < length) {
-            filtScratchIn[index] = sample0 - src[ i ];
+            filtScratchIn[index] = sample0 - src[i];
         }
         ++index;
     }
     index = 0;
     for (i = 0; i < nFact; i++) {
         if (i + 1 < length) {
-            filtScratchIn[(nExt - nFact) + index] =
-                sampleN - src[ (length - 2) - i ];
+            filtScratchIn[(nExt - nFact) + index] = sampleN - src[(length - 2) - i];
         }
         ++index;
     }
 
     for (i = 0; i < length; i++) {
-        filtScratchIn[ i + nFact ] = src[ i ];
+        filtScratchIn[i + nFact] = src[i];
     }
-    
+
     ////////////////////////////////
     // Do 0Ph filtering
     m_filter.process(filtScratchIn, filtScratchOut, nExt);
-        
-    // reverse the series for FILTFILT 
-    for (i = 0; i < nExt; i++) { 
-        filtScratchIn[ i ] = filtScratchOut[ nExt - i - 1];
+
+    // reverse the series for FILTFILT
+    for (i = 0; i < nExt; i++) {
+        filtScratchIn[i] = filtScratchOut[nExt - i - 1];
     }
 
     // clear filter state
     m_filter.reset();
-    
-    // do FILTER again 
+
+    // do FILTER again
     m_filter.process(filtScratchIn, filtScratchOut, nExt);
 
     // reverse the series to output
     for (i = 0; i < length; i++) {
-        dst[ i ] = filtScratchOut[ nExt - nFact - i - 1 ];
+        dst[i] = filtScratchOut[nExt - nFact - i - 1];
     }
 
-    delete [] filtScratchIn;
-    delete [] filtScratchOut;
+    delete[] filtScratchIn;
+    delete[] filtScratchOut;
 }
-

@@ -15,9 +15,8 @@
 #ifndef QM_DSP_FFT_H
 #define QM_DSP_FFT_H
 
-class FFT  
-{
-public:
+class FFT {
+  public:
     /**
      * Construct an FFT object to carry out complex-to-complex
      * transforms of size nsamples. nsamples does not have to be a
@@ -40,18 +39,16 @@ public:
      *
      * The inverse transform is scaled by 1/nsamples.
      */
-    void process(bool inverse,
-                 const double *realIn, const double *imagIn,
-                 double *realOut, double *imagOut);
-    
-private:
+    void process(bool inverse, const double *realIn, const double *imagIn, double *realOut,
+                 double *imagOut);
+
+  private:
     class D;
     D *m_d;
 };
 
-class FFTReal
-{
-public:
+class FFTReal {
+  public:
     /**
      * Construct an FFT object to carry out real-to-complex transforms
      * of size nsamples. nsamples does not have to be a power of two,
@@ -71,8 +68,7 @@ public:
      * compatibility with existing code, the conjugate half of the
      * output is returned even though it is redundant.
      */
-    void forward(const double *realIn,
-                 double *realOut, double *imagOut);
+    void forward(const double *realIn, double *realOut, double *imagOut);
 
     /**
      * Carry out a forward real-to-complex transform of size nsamples,
@@ -100,12 +96,11 @@ public:
      *
      * The inverse transform is scaled by 1/nsamples.
      */
-    void inverse(const double *realIn, const double *imagIn,
-                 double *realOut);
+    void inverse(const double *realIn, const double *imagIn, double *realOut);
 
-private:
+  private:
     class D;
     D *m_d;
-};    
+};
 
 #endif

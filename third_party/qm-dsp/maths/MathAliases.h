@@ -18,36 +18,36 @@
 #include <cmath>
 #include <complex>
 
-#define TWO_PI          (2. * M_PI)
+#define TWO_PI (2. * M_PI)
 
-#define EPS             2.2204e-016
+#define EPS 2.2204e-016
 
 /* aliases to math.h functions */
-#define EXP                             exp
-#define COS                             cos
-#define SIN                             sin
-#define ABS                             fabs
-#define POW                             powf
-#define SQRT                    sqrtf
-#define LOG10                   log10f
-#define LOG                             logf
-#define FLOOR                   floorf
-#define TRUNC                   truncf
+#define EXP exp
+#define COS cos
+#define SIN sin
+#define ABS fabs
+#define POW powf
+#define SQRT sqrtf
+#define LOG10 log10f
+#define LOG logf
+#define FLOOR floorf
+#define TRUNC truncf
 
 typedef std::complex<double> ComplexData;
 
 /* aliases to complex.h functions */
 /** sample = EXPC(complex) */
-#define EXPC                    cexpf
+#define EXPC cexpf
 /** complex = CEXPC(complex) */
-#define CEXPC                   cexp
+#define CEXPC cexp
 /** sample = ARGC(complex) */
-#define ARGC                    cargf
+#define ARGC cargf
 /** sample = ABSC(complex) norm */
-#define ABSC                    cabsf
+#define ABSC cabsf
 /** sample = REAL(complex) */
-#define REAL                    crealf
+#define REAL crealf
 /** sample = IMAG(complex) */
-#define IMAG                    cimagf
+#define IMAG cimagf
 
 #endif

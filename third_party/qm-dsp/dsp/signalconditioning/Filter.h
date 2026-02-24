@@ -15,13 +15,12 @@
 #ifndef QM_DSP_FILTER_H
 #define QM_DSP_FILTER_H
 
-#include "base/Restrict.h"
-
 #include <vector>
 
-class Filter
-{
-public:
+#include "base/Restrict.h"
+
+class Filter {
+  public:
     struct Parameters {
         std::vector<double> a;
         std::vector<double> b;
@@ -34,7 +33,7 @@ public:
      * Otherwise, a and b must have the same number of values.
      */
     Filter(Parameters params);
-    
+
     ~Filter();
 
     void reset();
@@ -44,13 +43,11 @@ public:
      * write the resulting \arg n samples into \arg out. There must be
      * enough room in \arg out for \arg n samples to be written.
      */
-    void process(const double *const QM_R__ in,
-                 double *const QM_R__ out,
-                 const int n);
+    void process(const double *const QM_R__ in, double *const QM_R__ out, const int n);
 
     int getOrder() const { return m_order; }
-    
-private:
+
+  private:
     int m_order;
     int m_sz;
     std::vector<double> m_a;
@@ -62,8 +59,8 @@ private:
     int m_offmax;
     bool m_fir;
 
-    Filter(const Filter &); // not supplied
-    Filter &operator=(const Filter &); // not supplied
+    Filter(const Filter &);             // not supplied
+    Filter &operator=(const Filter &);  // not supplied
 };
-    
+
 #endif

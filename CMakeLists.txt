@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(manalysis VERSION 0.1.0 LANGUAGES C CXX)
+project(mixxx-analyzer VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -68,20 +68,19 @@ set(ANALYSIS_LIBS
 )
 
 # ── Main executable ───────────────────────────────────────────────────────────
-add_executable(manalysis src/main.cpp ${ANALYSIS_SOURCES})
-target_include_directories(manalysis PRIVATE ${ANALYSIS_INCLUDE_DIRS})
-target_link_libraries(manalysis PRIVATE ${ANALYSIS_LIBS})
-target_compile_options(manalysis PRIVATE -Wall -Wextra -O2)
+add_executable(mixxx-analyzer src/main.cpp ${ANALYSIS_SOURCES})
+target_include_directories(mixxx-analyzer PRIVATE ${ANALYSIS_INCLUDE_DIRS})
+target_link_libraries(mixxx-analyzer PRIVATE ${ANALYSIS_LIBS})
+target_compile_options(mixxx-analyzer PRIVATE -Wall -Wextra -O2)
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 enable_testing()
 
-add_executable(manalysis-test tests/analysis_test.cpp ${ANALYSIS_SOURCES})
-target_include_directories(manalysis-test PRIVATE ${ANALYSIS_INCLUDE_DIRS} src)
-target_link_libraries(manalysis-test PRIVATE ${ANALYSIS_LIBS} GTest::gtest GTest::gtest_main)
-target_compile_options(manalysis-test PRIVATE -Wall -O2)
-target_compile_definitions(manalysis-test PRIVATE
+add_executable(mixxx-analyzer-test tests/analysis_test.cpp ${ANALYSIS_SOURCES})
+target_include_directories(mixxx-analyzer-test PRIVATE ${ANALYSIS_INCLUDE_DIRS} src)
+target_link_libraries(mixxx-analyzer-test PRIVATE ${ANALYSIS_LIBS} GTest::gtest GTest::gtest_main)
+target_compile_options(mixxx-analyzer-test PRIVATE -Wall -O2)
+target_compile_definitions(mixxx-analyzer-test PRIVATE
     MANALYSIS_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/assets")
 
-add_test(NAME AnalysisTest COMMAND manalysis-test)
-
+add_test(NAME AnalysisTest COMMAND mixxx-analyzer-test)

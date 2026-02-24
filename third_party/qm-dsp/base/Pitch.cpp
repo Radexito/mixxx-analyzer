@@ -16,26 +16,18 @@
 
 #include <math.h>
 
-float
-Pitch::getFrequencyForPitch(int midiPitch,
-                            float centsOffset,
-                            float concertA)
-{
+float Pitch::getFrequencyForPitch(int midiPitch, float centsOffset, float concertA) {
     float p = float(midiPitch) + (centsOffset / 100);
     return concertA * powf(2.0, (p - 69.0) / 12.0);
 }
 
-int
-Pitch::getPitchForFrequency(float frequency,
-                            float *centsOffsetReturn,
-                            float concertA)
-{
+int Pitch::getPitchForFrequency(float frequency, float *centsOffsetReturn, float concertA) {
     float p = 12.0 * (log(frequency / (concertA / 2.0)) / log(2.0)) + 57.0;
 
     int midiPitch = static_cast<int>(p + 0.5);
     float centsOffset = (p - midiPitch) * 100.0;
-    
-    if (centsOffsetReturn) *centsOffsetReturn = centsOffset;
+
+    if (centsOffsetReturn)
+        *centsOffsetReturn = centsOffset;
     return midiPitch;
 }
-

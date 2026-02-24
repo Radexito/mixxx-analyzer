@@ -19,17 +19,12 @@
  * Convert between musical pitch (i.e. MIDI pitch number) and
  * fundamental frequency.
  */
-class Pitch
-{
-public:
-    static float getFrequencyForPitch(int midiPitch,
-                                      float centsOffset = 0,
-                                      float concertA = 440.0);
+class Pitch {
+  public:
+    static float getFrequencyForPitch(int midiPitch, float centsOffset = 0, float concertA = 440.0);
 
-    static int getPitchForFrequency(float frequency,
-                                    float *centsOffsetReturn = 0,
+    static int getPitchForFrequency(float frequency, float *centsOffsetReturn = 0,
                                     float concertA = 440.0);
 };
-
 
 #endif

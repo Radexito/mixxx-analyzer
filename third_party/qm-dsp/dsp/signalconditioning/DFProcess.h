@@ -24,49 +24,46 @@
 #ifndef QM_DSP_DFPROCESS_H
 #define QM_DSP_DFPROCESS_H
 
-#include "FiltFilt.h"
-
 #include <stdio.h>
 
-struct DFProcConfig
-{
-    int length; 
-    int LPOrd; 
-    double *LPACoeffs; 
-    double *LPBCoeffs; 
+#include "FiltFilt.h"
+
+struct DFProcConfig {
+    int length;
+    int LPOrd;
+    double* LPACoeffs;
+    double* LPBCoeffs;
     int winPre;
-    int winPost; 
+    int winPost;
     double AlphaNormParam;
     bool isMedianPositive;
-    float delta; //delta threshold used as an offset when computing the smoothed detection function
+    float delta;  // delta threshold used as an offset when computing the smoothed detection
+                  // function
 
-    DFProcConfig() :
-        length(0),
-        LPOrd(0),
-        LPACoeffs(NULL),
-        LPBCoeffs(NULL),
-        winPre(0),
-        winPost(0),
-        AlphaNormParam(0),
-        isMedianPositive(false),
-        delta(0)
-    {
-    }
+    DFProcConfig()
+        : length(0),
+          LPOrd(0),
+          LPACoeffs(NULL),
+          LPBCoeffs(NULL),
+          winPre(0),
+          winPost(0),
+          AlphaNormParam(0),
+          isMedianPositive(false),
+          delta(0) {}
 };
 
-class DFProcess  
-{
-public:
-    DFProcess( DFProcConfig Config );
+class DFProcess {
+  public:
+    DFProcess(DFProcConfig Config);
     virtual ~DFProcess();
 
-    void process( double* src, double* dst );
-        
-private:
-    void initialise( DFProcConfig Config );
+    void process(double* src, double* dst);
+
+  private:
+    void initialise(DFProcConfig Config);
     void deInitialise();
-    void removeDCNormalize( double *src, double*dst );
-    void medianFilter( double* src, double* dst );
+    void removeDCNormalize(double* src, double* dst);
+    void medianFilter(double* src, double* dst);
 
     int m_length;
     int m_FFOrd;
@@ -85,7 +82,7 @@ private:
     FiltFilt* m_FiltFilt;
 
     bool m_isMedianPositive;
-    float m_delta; //add delta threshold
+    float m_delta;  // add delta threshold
 };
 
 #endif

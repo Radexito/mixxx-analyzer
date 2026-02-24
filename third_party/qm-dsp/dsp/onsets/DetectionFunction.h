@@ -16,10 +16,10 @@
 #ifndef QM_DSP_DETECTIONFUNCTION_H
 #define QM_DSP_DETECTIONFUNCTION_H
 
-#include "maths/MathUtilities.h"
-#include "maths/MathAliases.h"
-#include "dsp/phasevocoder/PhaseVocoder.h"
 #include "base/Window.h"
+#include "dsp/phasevocoder/PhaseVocoder.h"
+#include "maths/MathAliases.h"
+#include "maths/MathUtilities.h"
 
 #define DF_HFC (1)
 #define DF_SPECDIFF (2)
@@ -27,21 +27,20 @@
 #define DF_COMPLEXSD (4)
 #define DF_BROADBAND (5)
 
-struct DFConfig{
-    int stepSize; // DF step in samples
-    int frameLength; // DF analysis window - usually 2*step. Must be even!
-    int DFType; // type of detection function ( see defines )
-    double dbRise; // only used for broadband df (and required for it)
-    bool adaptiveWhitening; // perform adaptive whitening
-    double whiteningRelaxCoeff; // if < 0, a sensible default will be used
-    double whiteningFloor; // if < 0, a sensible default will be used
+struct DFConfig {
+    int stepSize;                // DF step in samples
+    int frameLength;             // DF analysis window - usually 2*step. Must be even!
+    int DFType;                  // type of detection function ( see defines )
+    double dbRise;               // only used for broadband df (and required for it)
+    bool adaptiveWhitening;      // perform adaptive whitening
+    double whiteningRelaxCoeff;  // if < 0, a sensible default will be used
+    double whiteningFloor;       // if < 0, a sensible default will be used
 };
 
-class DetectionFunction  
-{
-public:
+class DetectionFunction {
+  public:
     double* getSpectrumMagnitude();
-    DetectionFunction( DFConfig config );
+    DetectionFunction(DFConfig config);
     virtual ~DetectionFunction();
 
     /**
@@ -56,18 +55,18 @@ public:
      */
     double processFrequencyDomain(const double* reals, const double* imags);
 
-private:
+  private:
     void whiten();
     double runDF();
 
     double HFC(int length, double* src);
     double specDiff(int length, double* src);
-    double phaseDev(int length, double *srcPhase);
-    double complexSD(int length, double *srcMagnitude, double *srcPhase);
-    double broadband(int length, double *srcMagnitude);
-        
-private:
-    void initialise( DFConfig Config );
+    double phaseDev(int length, double* srcPhase);
+    double complexSD(int length, double* srcMagnitude, double* srcPhase);
+    double broadband(int length, double* srcMagnitude);
+
+  private:
+    void initialise(DFConfig Config);
     void deInitialise();
 
     int m_DFType;
@@ -84,13 +83,13 @@ private:
     double* m_phaseHistoryOld;
     double* m_magPeaks;
 
-    double* m_windowed; // Array for windowed analysis frame
-    double* m_magnitude; // Magnitude of analysis frame ( frequency domain )
-    double* m_thetaAngle;// Phase of analysis frame ( frequency domain )
-    double* m_unwrapped; // Unwrapped phase of analysis frame
+    double* m_windowed;    // Array for windowed analysis frame
+    double* m_magnitude;   // Magnitude of analysis frame ( frequency domain )
+    double* m_thetaAngle;  // Phase of analysis frame ( frequency domain )
+    double* m_unwrapped;   // Unwrapped phase of analysis frame
 
-    Window<double> *m_window;
-    PhaseVocoder* m_phaseVoc;   // Phase Vocoder
+    Window<double>* m_window;
+    PhaseVocoder* m_phaseVoc;  // Phase Vocoder
 };
 
-#endif 
+#endif

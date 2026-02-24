@@ -24,88 +24,73 @@
 #ifndef QM_DSP_PEAKPICKING_H
 #define QM_DSP_PEAKPICKING_H
 
-#include "maths/MathUtilities.h"
-#include "maths/MathAliases.h"
 #include "dsp/signalconditioning/DFProcess.h"
+#include "maths/MathAliases.h"
+#include "maths/MathUtilities.h"
 
-
-struct PPWinThresh
-{
+struct PPWinThresh {
     int pre;
     int post;
 
-    PPWinThresh(int x, int y) :
-        pre(x),
-        post(y)
-    {
-    }
+    PPWinThresh(int x, int y) : pre(x), post(y) {}
 };
 
-struct QFitThresh
-{
+struct QFitThresh {
     double a;
     double b;
     double c;
 
-    QFitThresh(double x, double y, double z) :
-        a(x),
-        b(y),
-        c(z)
-    {
-    }
+    QFitThresh(double x, double y, double z) : a(x), b(y), c(z) {}
 };
 
-struct PPickParams
-{
-    int length; // detection function length
-    double tau; // time resolution of the detection function
-    int alpha; // alpha-norm parameter
-    double cutoff;// low-pass filter cutoff freq
-    int LPOrd; // low-pass filter order
-    double* LPACoeffs; // low-pass filter denominator coefficients
-    double* LPBCoeffs; // low-pass filter numerator coefficients
-    PPWinThresh WinT;// window size in frames for adaptive thresholding [pre post]:
+struct PPickParams {
+    int length;         // detection function length
+    double tau;         // time resolution of the detection function
+    int alpha;          // alpha-norm parameter
+    double cutoff;      // low-pass filter cutoff freq
+    int LPOrd;          // low-pass filter order
+    double* LPACoeffs;  // low-pass filter denominator coefficients
+    double* LPBCoeffs;  // low-pass filter numerator coefficients
+    PPWinThresh WinT;   // window size in frames for adaptive thresholding [pre post]:
     QFitThresh QuadThresh;
-    float delta; // delta threshold used as an offset when computing the smoothed detection function
+    float
+        delta;  // delta threshold used as an offset when computing the smoothed detection function
 
-    PPickParams() :
-        length(0),
-        tau(0),
-        alpha(0),
-        cutoff(0),
-        LPOrd(0),
-        LPACoeffs(NULL),
-        LPBCoeffs(NULL),
-        WinT(0,0),
-        QuadThresh(0,0,0),
-        delta(0)
-    {
-    }
+    PPickParams()
+        : length(0),
+          tau(0),
+          alpha(0),
+          cutoff(0),
+          LPOrd(0),
+          LPACoeffs(NULL),
+          LPBCoeffs(NULL),
+          WinT(0, 0),
+          QuadThresh(0, 0, 0),
+          delta(0) {}
 };
 
-class PeakPicking  
-{
-public:
-    PeakPicking( PPickParams Config );
+class PeakPicking {
+  public:
+    PeakPicking(PPickParams Config);
     virtual ~PeakPicking();
-        
-    void process( double* src, int len, std::vector<int> &onsets  );
 
-private:
-    void initialise( PPickParams Config  );
+    void process(double* src, int len, std::vector<int>& onsets);
+
+  private:
+    void initialise(PPickParams Config);
     void deInitialise();
-    int  quadEval( std::vector<double> &src, std::vector<int> &idx );
-        
+    int quadEval(std::vector<double>& src, std::vector<int>& idx);
+
     DFProcConfig m_DFProcessingParams;
 
-    int m_DFLength ;
-    double Qfilta ;
+    int m_DFLength;
+    double Qfilta;
     double Qfiltb;
     double Qfiltc;
 
     double* m_workBuffer;
-        
-    DFProcess*  m_DFSmoothing;
+
+    DFProcess* m_DFSmoothing;
 };
 
 #endif

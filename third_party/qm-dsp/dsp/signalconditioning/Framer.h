@@ -18,29 +18,28 @@
 
 #include <stdint.h>
 
-class Framer  
-{
-public:
+class Framer {
+  public:
     Framer();
     virtual ~Framer();
 
     void setSource(double* src, int64_t length);
     void configure(int frameLength, int hop);
-    
+
     int getMaxNoFrames();
     void getFrame(double* dst);
 
     void resetCounters();
 
-private:
-    int64_t m_sampleLen;          // DataLength (samples)
-    int m_framesRead;             // Read Frames Index
- 
+  private:
+    int64_t m_sampleLen;  // DataLength (samples)
+    int m_framesRead;     // Read Frames Index
+
     double* m_srcBuffer;
-    double* m_dataFrame;          // Analysis Frame Buffer
-    double* m_strideFrame;        // Stride Frame Buffer
-    int m_frameLength;            // Analysis Frame Length
-    int m_stepSize;               // Analysis Frame Stride
+    double* m_dataFrame;    // Analysis Frame Buffer
+    double* m_strideFrame;  // Stride Frame Buffer
+    int m_frameLength;      // Analysis Frame Length
+    int m_stepSize;         // Analysis Frame Stride
 
     int m_maxFrames;
 

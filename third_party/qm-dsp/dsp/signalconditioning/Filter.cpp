@@ -18,8 +18,7 @@
 
 using namespace std;
 
-Filter::Filter(Parameters params)
-{
+Filter::Filter(Parameters params) {
     if (params.a.empty()) {
         m_fir = true;
         if (params.b.empty()) {
@@ -31,13 +30,13 @@ Filter::Filter(Parameters params)
             throw logic_error("Inconsistent numbers of filter coefficients");
         }
     }
-    
+
     m_sz = int(params.b.size());
     m_order = m_sz - 1;
 
     m_a = params.a;
     m_b = params.b;
-    
+
     // We keep some empty space at the start of the buffer, and
     // encroach gradually into it as we add individual sample
     // calculations at the start. Then when we run out of space, we
@@ -56,13 +55,9 @@ Filter::Filter(Parameters params)
     m_bufb.resize(m_sz + m_offmax);
 }
 
-Filter::~Filter()
-{
-}
+Filter::~Filter() {}
 
-void
-Filter::reset()
-{
+void Filter::reset() {
     m_offb = m_offmax;
     m_offa = m_offmax;
 
@@ -73,13 +68,8 @@ Filter::reset()
     m_bufb.assign(m_bufb.size(), 0.0);
 }
 
-void
-Filter::process(const double *const QM_R__ in,
-                double *const QM_R__ out,
-                const int n)
-{
+void Filter::process(const double *const QM_R__ in, double *const QM_R__ out, const int n) {
     for (int s = 0; s < n; ++s) {
-
         if (m_offb > 0) {
             --m_offb;
         } else {
@@ -98,11 +88,9 @@ Filter::process(const double *const QM_R__ in,
         double outval;
 
         if (m_fir) {
-
             outval = b_sum;
 
         } else {
-
             double a_sum = 0.0;
             for (int i = 0; i < m_order; ++i) {
                 a_sum += m_a[i + 1] * m_bufa[i + m_offa];
@@ -120,8 +108,7 @@ Filter::process(const double *const QM_R__ in,
             }
             m_bufa[m_offa] = outval;
         }
-        
+
         out[s] = outval;
     }
 }
-

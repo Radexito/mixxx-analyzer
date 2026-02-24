@@ -106,9 +106,10 @@ bool AudioDecoder::decode(const std::string &path, Callback cb, std::string &err
                                  ? codecCtx->channel_layout
                                  : av_get_default_channel_layout(codecCtx->channels)),
         codecCtx->sample_fmt, codecCtx->sample_rate, 0, nullptr);
-    error = "swr_alloc_set_opts failed";
-    return false;
-}
+    if (rawSwr == nullptr) {
+        error = "swr_alloc_set_opts failed";
+        return false;
+    }
 #endif
     std::unique_ptr<SwrContext, SwrContextDeleter> swr(rawSwr);
 

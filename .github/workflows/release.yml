@@ -32,7 +32,8 @@ jobs:
       - name: Build manylinux wheel (inside Docker)
         run: |
           docker run --name wheel-run mixxx-analyzer-build bash -c "
-            pip3 install build auditwheel patchelf --quiet &&
+            apt-get install -y python3-pip patchelf -q &&
+            python3 -m pip install build auditwheel --quiet &&
             mkdir -p /src/python/mixxx_analyzer/bin &&
             cp /src/build/mixxx-analyzer /src/python/mixxx_analyzer/bin/ &&
             chmod +x /src/python/mixxx_analyzer/bin/mixxx-analyzer &&
@@ -87,17 +88,11 @@ jobs:
 
       - name: Bundle dylibs, build wheel + standalone binary
         run: |
-          cp build/mixxx-analyzer python/mixxx_analyzer/bin/
-          chmod 755 python/mixxx_analyzer/bin/mixxx-analyzer
           python -m pip install build delocate
 
-          # Standalone binary: bundle dylibs next to the executable
-          python -m delocate.cmd.delocate_path \
-            -L python/mixxx_analyzer/bin/ \
-            python/mixxx_analyzer/bin/
-          zip -j mixxx-analyzer-macos-arm64.zip python/mixxx_analyzer/bin/*
-
-          # Wheel: build then repair (delocate-wheel re-bundles cleanly into .dylibs/)
+          # ── Wheel (use clean binary; delocate-wheel bundles dylibs into .dylibs/) ──
+          cp build/mixxx-analyzer python/mixxx_analyzer/bin/
+          chmod 755 python/mixxx_analyzer/bin/mixxx-analyzer
           cd python
           MACOSX_DEPLOYMENT_TARGET=11.0 \
             _PYTHON_HOST_PLATFORM=macosx-11.0-arm64 \
@@ -105,6 +100,15 @@ jobs:
           python -m delocate.cmd.delocate_wheel \
             --require-archs arm64 \
             -w dist/repaired dist/*.whl
+          cd ..
+
+          # ── Standalone zip (separate copy; delocate-path modifies paths in-place) ──
+          mkdir -p standalone-bin
+          cp build/mixxx-analyzer standalone-bin/
+          chmod 755 standalone-bin/mixxx-analyzer
+          python -m delocate.cmd.delocate_path \
+            -L standalone-bin/ standalone-bin/
+          zip -j mixxx-analyzer-macos-arm64.zip standalone-bin/*
 
       - uses: actions/upload-artifact@v4
         with:

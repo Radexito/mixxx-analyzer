@@ -12,11 +12,11 @@ if(BUILD_TESTING)
     find_package(GTest REQUIRED)
 endif()
 
-pkg_check_modules(EBUR128    REQUIRED libebur128)
-pkg_check_modules(AVCODEC    REQUIRED libavcodec)
-pkg_check_modules(AVFORMAT   REQUIRED libavformat)
-pkg_check_modules(AVUTIL     REQUIRED libavutil)
-pkg_check_modules(SWRESAMPLE REQUIRED libswresample)
+pkg_check_modules(EBUR128    REQUIRED IMPORTED_TARGET libebur128)
+pkg_check_modules(AVCODEC    REQUIRED IMPORTED_TARGET libavcodec)
+pkg_check_modules(AVFORMAT   REQUIRED IMPORTED_TARGET libavformat)
+pkg_check_modules(AVUTIL     REQUIRED IMPORTED_TARGET libavutil)
+pkg_check_modules(SWRESAMPLE REQUIRED IMPORTED_TARGET libswresample)
 
 # ── qm-dsp (BPM tempo tracker + key detector, copied from Mixxx) ─────────────
 set(QM_DSP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/qm-dsp)
@@ -59,26 +59,18 @@ set(ANALYSIS_SOURCES
     src/SilenceAnalyzer.cpp
 )
 
-set(ANALYSIS_INCLUDE_DIRS
-    ${EBUR128_INCLUDE_DIRS}
-    ${AVCODEC_INCLUDE_DIRS}
-    ${AVFORMAT_INCLUDE_DIRS}
-    ${AVUTIL_INCLUDE_DIRS}
-    ${SWRESAMPLE_INCLUDE_DIRS}
-)
-
+# PkgConfig::* imported targets carry include dirs, lib dirs, and link flags.
 set(ANALYSIS_LIBS
     qm-dsp
-    ${EBUR128_LIBRARIES}
-    ${AVCODEC_LIBRARIES}
-    ${AVFORMAT_LIBRARIES}
-    ${AVUTIL_LIBRARIES}
-    ${SWRESAMPLE_LIBRARIES}
+    PkgConfig::EBUR128
+    PkgConfig::AVCODEC
+    PkgConfig::AVFORMAT
+    PkgConfig::AVUTIL
+    PkgConfig::SWRESAMPLE
 )
 
 # ── Main executable ───────────────────────────────────────────────────────────
 add_executable(mixxx-analyzer src/main.cpp ${ANALYSIS_SOURCES})
-target_include_directories(mixxx-analyzer PRIVATE ${ANALYSIS_INCLUDE_DIRS})
 target_link_libraries(mixxx-analyzer PRIVATE ${ANALYSIS_LIBS})
 if(MSVC)
     target_compile_options(mixxx-analyzer PRIVATE /W3 /O2)
@@ -95,7 +87,7 @@ if(BUILD_TESTING)
     enable_testing()
 
     add_executable(mixxx-analyzer-test tests/analysis_test.cpp ${ANALYSIS_SOURCES})
-    target_include_directories(mixxx-analyzer-test PRIVATE ${ANALYSIS_INCLUDE_DIRS} src)
+    target_include_directories(mixxx-analyzer-test PRIVATE src)
     target_link_libraries(mixxx-analyzer-test PRIVATE ${ANALYSIS_LIBS} GTest::gtest GTest::gtest_main)
     target_compile_options(mixxx-analyzer-test PRIVATE -Wall -O2)
     target_compile_definitions(mixxx-analyzer-test PRIVATE

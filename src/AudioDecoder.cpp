@@ -15,19 +15,19 @@ namespace {
 
 // RAII helpers
 struct FormatContextDeleter {
-    void operator()(AVFormatContext* c) { avformat_close_input(&c); }
+    void operator()(AVFormatContext *c) { avformat_close_input(&c); }
 };
 struct CodecContextDeleter {
-    void operator()(AVCodecContext* c) { avcodec_free_context(&c); }
+    void operator()(AVCodecContext *c) { avcodec_free_context(&c); }
 };
 struct SwrContextDeleter {
-    void operator()(SwrContext* c) { swr_free(&c); }
+    void operator()(SwrContext *c) { swr_free(&c); }
 };
 struct PacketDeleter {
-    void operator()(AVPacket* p) { av_packet_free(&p); }
+    void operator()(AVPacket *p) { av_packet_free(&p); }
 };
 struct FrameDeleter {
-    void operator()(AVFrame* f) { av_frame_free(&f); }
+    void operator()(AVFrame *f) { av_frame_free(&f); }
 };
 
 std::string avError(int err) {
@@ -38,11 +38,11 @@ std::string avError(int err) {
 
 }  // namespace
 
-bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& error) {
+bool AudioDecoder::decode(const std::string &path, Callback cb, std::string &error) {
     av_log_set_level(AV_LOG_ERROR);  // suppress decoder warnings (timestamp drift etc.)
 
     // --- Open container ---
-    AVFormatContext* rawFmt = nullptr;
+    AVFormatContext *rawFmt = nullptr;
     if (int err = avformat_open_input(&rawFmt, path.c_str(), nullptr, nullptr); err < 0) {
         error = "avformat_open_input: " + avError(err);
         return false;
@@ -60,10 +60,10 @@ bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& err
         error = "No audio stream found";
         return false;
     }
-    AVStream* stream = fmt->streams[streamIdx];
+    AVStream *stream = fmt->streams[streamIdx];
 
     // --- Set up decoder ---
-    const AVCodec* codec = avcodec_find_decoder(stream->codecpar->codec_id);
+    const AVCodec *codec = avcodec_find_decoder(stream->codecpar->codec_id);
     if (!codec) {
         error = "Unsupported codec";
         return false;
@@ -86,7 +86,7 @@ bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& err
     const int outChannels = 2;
 
     // --- Set up resampler: any input format -> stereo interleaved float32 ---
-    SwrContext* rawSwr = nullptr;
+    SwrContext *rawSwr = nullptr;
 
 #if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(57, 28, 100)
     // FFmpeg >= 5.1: new channel layout API
@@ -102,13 +102,13 @@ bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& err
     // FFmpeg < 5.1: legacy channel layout API
     rawSwr = swr_alloc_set_opts(
         nullptr, AV_CH_LAYOUT_STEREO, AV_SAMPLE_FMT_FLT, outSampleRate,
-        static_cast<int64_t>(codecCtx->channel_layout ? codecCtx->channel_layout
-                                                       : av_get_default_channel_layout(
-                                                             codecCtx->channels)),
+        static_cast<int64_t>(codecCtx->channel_layout
+                                 ? codecCtx->channel_layout
+                                 : av_get_default_channel_layout(codecCtx->channels)),
         codecCtx->sample_fmt, codecCtx->sample_rate, 0, nullptr);
-        error = "swr_alloc_set_opts failed";
-        return false;
-    }
+    error = "swr_alloc_set_opts failed";
+    return false;
+}
 #endif
     std::unique_ptr<SwrContext, SwrContextDeleter> swr(rawSwr);
 
@@ -134,12 +134,12 @@ bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& err
         }
     };
 
-    auto convertAndBuffer = [&](AVFrame* f) {
+    auto convertAndBuffer = [&](AVFrame *f) {
         const int maxOut = f->nb_samples + 256;
         std::vector<float> tmp(maxOut * outChannels);
-        uint8_t* dst = reinterpret_cast<uint8_t*>(tmp.data());
+        uint8_t *dst = reinterpret_cast<uint8_t *>(tmp.data());
 
-        int converted = swr_convert(swr.get(), &dst, maxOut, const_cast<const uint8_t**>(f->data),
+        int converted = swr_convert(swr.get(), &dst, maxOut, const_cast<const uint8_t **>(f->data),
                                     f->nb_samples);
         if (converted < 0)
             return;
@@ -188,7 +188,7 @@ bool AudioDecoder::decode(const std::string& path, Callback cb, std::string& err
         const int maxOut = swr_get_delay(swr.get(), outSampleRate) + 256;
         if (maxOut > 0) {
             std::vector<float> tmp(maxOut * outChannels);
-            uint8_t* dst = reinterpret_cast<uint8_t*>(tmp.data());
+            uint8_t *dst = reinterpret_cast<uint8_t *>(tmp.data());
             int converted = swr_convert(swr.get(), &dst, maxOut, nullptr, 0);
             if (converted > 0) {
                 size_t prev = outBuf.size();

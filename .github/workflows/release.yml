@@ -264,3 +264,31 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+
+  # ── Bump version on dev after a successful publish ────────────────────────────
+  bump-version:
+    needs: [publish-pypi]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Bump patch version in pyproject.toml
+        run: |
+          OLD=$(grep '^version = ' python/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          NEW=$(python3 -c "v='$OLD'.split('.'); v[2]=str(int(v[2])+1); print('.'.join(v))")
+          sed -i "s/^version = \"$OLD\"/version = \"$NEW\"/" python/pyproject.toml
+          echo "Bumped $OLD -> $NEW"
+
+      - name: Commit and push to dev
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          VERSION=$(grep '^version = ' python/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          git add python/pyproject.toml
+          git commit -m "chore: bump version to $VERSION"
+          git push origin dev

@@ -6,7 +6,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(PkgConfig REQUIRED)
-find_package(GTest REQUIRED)
+
+option(BUILD_TESTING "Build tests" ON)
+if(BUILD_TESTING)
+    find_package(GTest REQUIRED)
+endif()
 
 pkg_check_modules(EBUR128    REQUIRED libebur128)
 pkg_check_modules(AVCODEC    REQUIRED libavcodec)
@@ -38,7 +42,12 @@ add_library(qm-dsp STATIC
 )
 target_include_directories(qm-dsp PUBLIC ${QM_DSP_DIR})
 target_compile_definitions(qm-dsp PRIVATE kiss_fft_scalar=double)
-target_compile_options(qm-dsp PRIVATE -O2 -w) # suppress qm-dsp warnings
+if(MSVC)
+    target_compile_definitions(qm-dsp PRIVATE _USE_MATH_DEFINES NOMINMAX)
+    target_compile_options(qm-dsp PRIVATE /W0 /O2)
+else()
+    target_compile_options(qm-dsp PRIVATE -O2 -w) # suppress qm-dsp warnings
+endif()
 
 # ── Shared analysis sources ───────────────────────────────────────────────────
 set(ANALYSIS_SOURCES
@@ -71,19 +80,26 @@ set(ANALYSIS_LIBS
 add_executable(mixxx-analyzer src/main.cpp ${ANALYSIS_SOURCES})
 target_include_directories(mixxx-analyzer PRIVATE ${ANALYSIS_INCLUDE_DIRS})
 target_link_libraries(mixxx-analyzer PRIVATE ${ANALYSIS_LIBS})
-target_compile_options(mixxx-analyzer PRIVATE -Wall -Wextra -O2)
+if(MSVC)
+    target_compile_options(mixxx-analyzer PRIVATE /W3 /O2)
+    target_compile_definitions(mixxx-analyzer PRIVATE _USE_MATH_DEFINES NOMINMAX)
+else()
+    target_compile_options(mixxx-analyzer PRIVATE -Wall -Wextra -O2)
+endif()
 if(UNIX AND NOT APPLE)
     target_link_options(mixxx-analyzer PRIVATE -static-libstdc++ -static-libgcc)
 endif()
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
-enable_testing()
+if(BUILD_TESTING)
+    enable_testing()
 
-add_executable(mixxx-analyzer-test tests/analysis_test.cpp ${ANALYSIS_SOURCES})
-target_include_directories(mixxx-analyzer-test PRIVATE ${ANALYSIS_INCLUDE_DIRS} src)
-target_link_libraries(mixxx-analyzer-test PRIVATE ${ANALYSIS_LIBS} GTest::gtest GTest::gtest_main)
-target_compile_options(mixxx-analyzer-test PRIVATE -Wall -O2)
-target_compile_definitions(mixxx-analyzer-test PRIVATE
-    MANALYSIS_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/assets")
+    add_executable(mixxx-analyzer-test tests/analysis_test.cpp ${ANALYSIS_SOURCES})
+    target_include_directories(mixxx-analyzer-test PRIVATE ${ANALYSIS_INCLUDE_DIRS} src)
+    target_link_libraries(mixxx-analyzer-test PRIVATE ${ANALYSIS_LIBS} GTest::gtest GTest::gtest_main)
+    target_compile_options(mixxx-analyzer-test PRIVATE -Wall -O2)
+    target_compile_definitions(mixxx-analyzer-test PRIVATE
+        MANALYSIS_TEST_ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/assets")
 
-add_test(NAME AnalysisTest COMMAND mixxx-analyzer-test)
+    add_test(NAME AnalysisTest COMMAND mixxx-analyzer-test)
+endif()

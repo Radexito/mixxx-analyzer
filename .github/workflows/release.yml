@@ -15,7 +15,7 @@ jobs:
         id: tag
         run: echo "tag=build-$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-  # ── Linux x86_64 wheel (Docker build + patchelf bundling) ────────────────────
+  # ── Linux x86_64 wheel ────────────────────────────────────────────────────────
   wheel-linux:
     needs: setup
     runs-on: ubuntu-22.04
@@ -33,6 +33,7 @@ jobs:
           id=$(docker create mixxx-analyzer-build)
           docker cp "$id":/src/build/mixxx-analyzer ./mixxx-analyzer
           docker rm "$id"
+          chmod +x mixxx-analyzer
 
       - name: Bundle shared libs
         run: |
@@ -49,13 +50,12 @@ jobs:
           name: wheel-linux-x86_64
           path: python/dist/*.whl
 
-      # Also keep the raw binary for direct download
       - uses: actions/upload-artifact@v4
         with:
           name: binary-linux-x86_64
           path: mixxx-analyzer
 
-  # ── macOS arm64 wheel (macos-14 = Apple Silicon) ─────────────────────────────
+  # ── macOS arm64 (Apple Silicon) ───────────────────────────────────────────────
   wheel-macos-arm64:
     needs: setup
     runs-on: macos-14
@@ -65,7 +65,7 @@ jobs:
       - name: Install deps
         run: brew install cmake ffmpeg libebur128
 
-      - name: Build C++ binary
+      - name: Build binary
         run: |
           export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
           cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
@@ -85,7 +85,7 @@ jobs:
           name: wheel-macos-arm64
           path: python/dist/repaired/*.whl
 
-  # ── macOS x86_64 wheel (macos-13 = Intel) ────────────────────────────────────
+  # ── macOS x86_64 (Intel) ─────────────────────────────────────────────────────
   wheel-macos-x86_64:
     needs: setup
     runs-on: macos-13
@@ -95,7 +95,7 @@ jobs:
       - name: Install deps
         run: brew install cmake ffmpeg libebur128
 
-      - name: Build C++ binary
+      - name: Build binary
         run: |
           export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
           cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
@@ -115,19 +115,52 @@ jobs:
           name: wheel-macos-x86_64
           path: python/dist/repaired/*.whl
 
-  # ── Windows x86_64 wheel (TODO) ───────────────────────────────────────────────
+  # ── Windows x86_64 ───────────────────────────────────────────────────────────
   wheel-windows:
     needs: setup
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Not yet implemented
-        run: echo "Windows build not yet implemented. Contributions welcome!"
-        shell: bash
 
-  # ── Create GitHub release with all wheels ────────────────────────────────────
+      - name: Install vcpkg deps
+        run: |
+          vcpkg install ffmpeg:x64-windows libebur128:x64-windows
+        env:
+          VCPKG_DEFAULT_TRIPLET: x64-windows
+
+      - name: Build binary
+        shell: cmd
+        run: |
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF ^
+            -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake ^
+            -DVCPKG_TARGET_TRIPLET=x64-windows
+          cmake --build build --config Release --parallel
+
+      - name: Bundle DLLs
+        shell: pwsh
+        run: |
+          # Add vcpkg bin to PATH so Find-Dll locates the DLLs
+          $env:PATH = "C:\vcpkg\installed\x64-windows\bin;$env:PATH"
+          New-Item -ItemType Directory -Force python/mixxx_analyzer/bin | Out-Null
+          pwsh scripts/bundle_windows.ps1 `
+            build/Release/mixxx-analyzer.exe `
+            python/mixxx_analyzer/bin
+
+      - name: Build wheel
+        shell: pwsh
+        run: |
+          pip install build
+          cd python
+          python -m build --wheel
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-windows-x86_64
+          path: python/dist/*.whl
+
+  # ── Create GitHub release ─────────────────────────────────────────────────────
   create-release:
-    needs: [setup, wheel-linux, wheel-macos-arm64, wheel-macos-x86_64]
+    needs: [setup, wheel-linux, wheel-macos-arm64, wheel-macos-x86_64, wheel-windows]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -160,16 +193,16 @@ jobs:
 
             ## Python wheels
 
-            Install the wheel for your platform:
             ```bash
             pip install mixxx_analyzer-*-<platform>.whl
             ```
 
             | File | Platform |
             |------|----------|
-            | `*linux_x86_64.whl` | Linux x86_64 (glibc ≥ 2.35 / Ubuntu 22.04+) |
+            | `*linux_x86_64.whl` | Linux x86_64 (Ubuntu 22.04+) |
             | `*macosx_*_arm64.whl` | macOS Apple Silicon |
             | `*macosx_*_x86_64.whl` | macOS Intel |
+            | `*win_amd64.whl` | Windows x86_64 |
 
             All wheels are self-contained — no system dependencies required.
           files: dist/*

@@ -1,6 +1,9 @@
 # mixxx-analyzer
 
 [![PyPI](https://img.shields.io/pypi/v/mixxx-analyzer)](https://pypi.org/project/mixxx-analyzer/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mixxx-analyzer)](https://pypi.org/project/mixxx-analyzer/)
+[![CI](https://github.com/Radexito/mixxx-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/Radexito/mixxx-analyzer/actions/workflows/ci.yml)
+[![clang-format](https://img.shields.io/badge/code%20style-clang--format-blue)](https://clang.llvm.org/docs/ClangFormat.html)
 
 A fast CLI tool for analyzing audio tracks. Outputs **BPM**, **musical key** (with Camelot wheel notation), **gain** (LUFS + ReplayGain), and **intro/outro timestamps** (first/last non-silent frame).
 
@@ -112,7 +115,7 @@ Exit code is 0 if all files were analyzed successfully, 1 if any failed.
 
 ## Tests
 
-Integration tests verify BPM and key results against Mixxx-detected reference values for 55 tracks:
+Integration tests verify BPM and key results against Mixxx-detected reference values for 11 Audionautix CC BY 4.0 tracks:
 
 ```bash
 build/mixxx-analyzer-test
@@ -123,16 +126,29 @@ build/mixxx-analyzer-test
 ```
 src/
   AudioDecoder.h/cpp        FFmpeg-based decoder → float32 stereo chunks
+  BpmAnalyzer.h/cpp         Thin wrapper selecting the QM BPM analyzer
+  KeyAnalyzer.h/cpp         Thin wrapper selecting the QM key analyzer
   QmBpmAnalyzer.h/cpp       Port of Mixxx AnalyzerQueenMaryBeats (qm-dsp TempoTrackV2)
   QmKeyAnalyzer.h/cpp       Port of Mixxx AnalyzerQueenMaryKey (qm-dsp GetKeyMode)
   GainAnalyzer.h/cpp        libebur128 wrapper (LUFS + ReplayGain)
   SilenceAnalyzer.h/cpp     Port of Mixxx AnalyzerSilence (intro/outro detection)
   DownmixAndOverlapHelper.h/cpp  Port of Mixxx buffering_utils (windowed feeding)
-  main.cpp                  CLI entry point
+  main.cpp                  CLI entry point (text + --json output)
 third_party/
   qm-dsp/                   Queen Mary DSP library (vendored subset)
 tests/
-  analysis_test.cpp         55 integration tests vs. Mixxx reference values
+  analysis_test.cpp         11 parameterized integration tests (Audionautix CC BY 4.0 tracks)
+  download_assets.sh        Downloads test audio assets
+python/
+  mixxx_analyzer/           Python package
+    __init__.py             Public API: analyze(), analyze_many(), AnalysisResult
+    _runner.py              Subprocess wrapper around bundled binary
+    bin/                    Bundled native binary + shared libraries (platform-specific)
+  pyproject.toml            Package metadata
+  setup.py                  Custom bdist_wheel for py3-none-<platform> tag
+scripts/
+  bundle_linux.sh           ldd + patchelf dep bundler (RPATH=$ORIGIN)
+  bundle_windows.ps1        PowerShell DLL dep collector
 ```
 
 ## Camelot wheel

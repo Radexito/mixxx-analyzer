@@ -32,7 +32,7 @@ jobs:
       - name: Build manylinux wheel (inside Docker)
         run: |
           docker run --name wheel-run mixxx-analyzer-build bash -c "
-            apt-get update -q && apt-get install -y python3-pip patchelf -q &&
+            apt-get update -q && apt-get install -y python3-pip python3-venv patchelf -q &&
             python3 -m pip install build auditwheel --quiet &&
             mkdir -p /src/python/mixxx_analyzer/bin &&
             cp /src/build/mixxx-analyzer /src/python/mixxx_analyzer/bin/ &&

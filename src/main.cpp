@@ -32,7 +32,12 @@ std::string jsonEscape(const std::string& s) {
             out += "\\r";
         else if (c == '\t')
             out += "\\t";
-        else
+        else if (c < 0x20) {
+            // Escape remaining control characters as \u00XX
+            char buf[7];
+            std::snprintf(buf, sizeof(buf), "\\u%04x", c);
+            out += buf;
+        } else
             out += static_cast<char>(c);
     }
     return out;
@@ -105,7 +110,7 @@ bool analyzeFile(const std::string& path, AnalysisResult& out) {
     out.introSecs = silenceResult.introSecs;
     out.outroSecs = silenceResult.outroSecs;
     out.tags = std::move(tags);
-    out.beatgrid = bpm->beatFramesSecs(sampleRate);
+    out.beatgrid = bpm->beatFramesSecs();
     return true;
 }
 

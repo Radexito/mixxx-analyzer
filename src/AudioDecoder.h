@@ -32,4 +32,10 @@ class AudioDecoder {
     // Returns true on success. On failure, 'error' is populated.
     // tagsOut is populated with embedded metadata tags on success.
     static bool decode(const std::string& path, Callback cb, std::string& error, Tags& tagsOut);
+
+    // Backward-compatible overload: ignores tags.
+    static bool decode(const std::string& path, Callback cb, std::string& error) {
+        Tags unusedTags;
+        return decode(path, cb, error, unusedTags);
+    }
 };

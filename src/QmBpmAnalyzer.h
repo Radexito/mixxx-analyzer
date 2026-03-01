@@ -22,7 +22,7 @@ class QmBpmAnalyzer {
     float result();
 
     // Returns beat positions in seconds (populated after result() is called).
-    std::vector<double> beatFramesSecs(int sampleRate) const;
+    std::vector<double> beatFramesSecs() const;
 
   private:
     int m_sampleRate;

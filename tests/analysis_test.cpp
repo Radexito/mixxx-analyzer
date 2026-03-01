@@ -67,7 +67,7 @@ static TrackResult analyzeTrack(const std::string& path) {
         r.key = key->result();
         r.gainOk = gain->result(r.gain);
         r.tags = std::move(tags);
-        r.beatgrid = bpm->beatFramesSecs(sampleRate);
+        r.beatgrid = bpm->beatFramesSecs();
     }
     return r;
 }

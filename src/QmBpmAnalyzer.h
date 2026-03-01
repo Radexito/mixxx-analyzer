@@ -9,7 +9,8 @@ class DetectionFunction;
 
 // Detects BPM using the Queen Mary tempo tracker — exact port of
 // mixxx::AnalyzerQueenMaryBeats (AnalyzerQueenMaryBeats.cpp).
-// Returns beat positions in frames; call averageBpm() to convert.
+// Call feed() with audio chunks, then result() to compute BPM and store
+// beat positions. Use beatFramesSecs() to retrieve beat positions in seconds.
 class QmBpmAnalyzer {
   public:
     explicit QmBpmAnalyzer(int sampleRate);
@@ -21,6 +22,9 @@ class QmBpmAnalyzer {
     // Finalises analysis and returns detected BPM (0 if undetected).
     float result();
 
+    // Returns beat positions in seconds (populated after result() is called).
+    std::vector<double> beatFramesSecs() const;
+
   private:
     int m_sampleRate;
     int m_windowSize;
@@ -29,5 +33,6 @@ class QmBpmAnalyzer {
     std::unique_ptr<DetectionFunction> m_pDetectionFunction;
     DownmixAndOverlapHelper m_helper;
     std::vector<double> m_detectionResults;
-    std::vector<double> m_beats;  // beat positions in df-increment units
+    std::vector<double> m_beats;       // beat positions in df-increment units
+    std::vector<double> m_beatFrames;  // beat positions in frames (set by result())
 };

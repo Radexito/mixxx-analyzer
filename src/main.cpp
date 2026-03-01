@@ -32,7 +32,12 @@ std::string jsonEscape(const std::string& s) {
             out += "\\r";
         else if (c == '\t')
             out += "\\t";
-        else
+        else if (c < 0x20) {
+            // Escape remaining control characters as \u00XX
+            char buf[7];
+            std::snprintf(buf, sizeof(buf), "\\u%04x", static_cast<unsigned>(c));
+            out += buf;
+        } else
             out += static_cast<char>(c);
     }
     return out;
@@ -47,6 +52,8 @@ struct AnalysisResult {
     double replayGain;
     double introSecs;
     double outroSecs;
+    AudioDecoder::Tags tags;
+    std::vector<double> beatgrid;
 };
 
 bool analyzeFile(const std::string& path, AnalysisResult& out) {
@@ -60,6 +67,7 @@ bool analyzeFile(const std::string& path, AnalysisResult& out) {
     std::unique_ptr<SilenceAnalyzer> silence;
 
     std::string decodeError;
+    AudioDecoder::Tags tags;
     bool ok = AudioDecoder::decode(
         path,
         [&](const float* samples, int numFrames, const AudioDecoder::AudioInfo& info) {
@@ -77,7 +85,7 @@ bool analyzeFile(const std::string& path, AnalysisResult& out) {
             gain->feed(samples, numFrames);
             silence->feed(samples, numFrames);
         },
-        decodeError);
+        decodeError, tags);
 
     if (!ok) {
         std::fprintf(stderr, "Error decoding '%s': %s\n", path.c_str(), decodeError.c_str());
@@ -101,6 +109,8 @@ bool analyzeFile(const std::string& path, AnalysisResult& out) {
     out.replayGain = gainOk ? gainResult.replayGain : 0.0;
     out.introSecs = silenceResult.introSecs;
     out.outroSecs = silenceResult.outroSecs;
+    out.tags = std::move(tags);
+    out.beatgrid = bpm->beatFramesSecs();
     return true;
 }
 
@@ -142,7 +152,23 @@ void printJson(const std::vector<AnalysisResult>& results) {
         std::printf("    \"lufs\": %.2f,\n", r.lufs);
         std::printf("    \"replayGain\": %.2f,\n", r.replayGain);
         std::printf("    \"introSecs\": %.3f,\n", r.introSecs);
-        std::printf("    \"outroSecs\": %.3f\n", r.outroSecs);
+        std::printf("    \"outroSecs\": %.3f,\n", r.outroSecs);
+        // Tags as flat fields
+        std::printf("    \"title\": \"%s\",\n", jsonEscape(r.tags.title).c_str());
+        std::printf("    \"artist\": \"%s\",\n", jsonEscape(r.tags.artist).c_str());
+        std::printf("    \"album\": \"%s\",\n", jsonEscape(r.tags.album).c_str());
+        std::printf("    \"year\": \"%s\",\n", jsonEscape(r.tags.year).c_str());
+        std::printf("    \"genre\": \"%s\",\n", jsonEscape(r.tags.genre).c_str());
+        std::printf("    \"label\": \"%s\",\n", jsonEscape(r.tags.label).c_str());
+        std::printf("    \"comment\": \"%s\",\n", jsonEscape(r.tags.comment).c_str());
+        std::printf("    \"trackNumber\": \"%s\",\n", jsonEscape(r.tags.trackNumber).c_str());
+        std::printf("    \"bpmTag\": \"%s\",\n", jsonEscape(r.tags.bpmTag).c_str());
+        // Beatgrid as array of seconds
+        std::printf("    \"beatgrid\": [");
+        for (std::size_t j = 0; j < r.beatgrid.size(); ++j) {
+            std::printf("%.6f%s", r.beatgrid[j], (j + 1 < r.beatgrid.size()) ? "," : "");
+        }
+        std::printf("]\n");
         std::printf("  }%s\n", (i + 1 < results.size()) ? "," : "");
     }
     std::printf("]\n");

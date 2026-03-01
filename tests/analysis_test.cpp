@@ -71,7 +71,6 @@ static TrackResult analyzeTrack(const std::string& path) {
     }
     return r;
 }
-}
 
 #define SKIP_IF_MISSING(path)                                                             \
     do {                                                                                  \

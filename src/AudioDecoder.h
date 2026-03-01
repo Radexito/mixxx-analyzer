@@ -21,8 +21,8 @@ class AudioDecoder {
         std::string genre;
         std::string label;
         std::string comment;
-        std::string track_number;
-        std::string bpm_tag;  // raw BPM/TBPM string tag (not analyzed BPM)
+        std::string trackNumber;
+        std::string bpmTag;  // raw BPM/TBPM string tag (not analyzed BPM)
     };
 
     // callback(samples, numFrames, info)

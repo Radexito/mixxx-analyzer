@@ -267,6 +267,7 @@ void QmBpmAnalyzer::feed(const float* interleavedStereo, int numFrames) {
 
 float QmBpmAnalyzer::result() {
     m_beatFrames.clear();
+    m_beats.clear();
     m_helper.finalize();
 
     // Trim trailing zeros (matches Mixxx finalize logic exactly).

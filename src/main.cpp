@@ -161,8 +161,8 @@ void printJson(const std::vector<AnalysisResult>& results) {
         std::printf("    \"genre\": \"%s\",\n", jsonEscape(r.tags.genre).c_str());
         std::printf("    \"label\": \"%s\",\n", jsonEscape(r.tags.label).c_str());
         std::printf("    \"comment\": \"%s\",\n", jsonEscape(r.tags.comment).c_str());
-        std::printf("    \"trackNumber\": \"%s\",\n", jsonEscape(r.tags.track_number).c_str());
-        std::printf("    \"bpmTag\": \"%s\",\n", jsonEscape(r.tags.bpm_tag).c_str());
+        std::printf("    \"trackNumber\": \"%s\",\n", jsonEscape(r.tags.trackNumber).c_str());
+        std::printf("    \"bpmTag\": \"%s\",\n", jsonEscape(r.tags.bpmTag).c_str());
         // Beatgrid as array of seconds
         std::printf("    \"beatgrid\": [");
         for (std::size_t j = 0; j < r.beatgrid.size(); ++j) {

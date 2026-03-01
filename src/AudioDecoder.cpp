@@ -67,13 +67,13 @@ bool AudioDecoder::decode(const std::string &path, Callback cb, std::string &err
     tags.album = getTag("album");
     tags.genre = getTag("genre");
     tags.comment = getTag("comment");
-    tags.track_number = getTag("track");
+    tags.trackNumber = getTag("track");
     tags.label = getTag("label");
 
     // BPM tag: try "BPM" first (ID3 TBPM maps to this), then "TBPM"
-    tags.bpm_tag = getTag("BPM");
-    if (tags.bpm_tag.empty())
-        tags.bpm_tag = getTag("TBPM");
+    tags.bpmTag = getTag("BPM");
+    if (tags.bpmTag.empty())
+        tags.bpmTag = getTag("TBPM");
 
     // "date" tag is often "2003" or "2003-01-15"; take first 4 chars as year
     std::string date = getTag("date");

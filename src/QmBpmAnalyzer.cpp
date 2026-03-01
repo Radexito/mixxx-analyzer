@@ -266,6 +266,8 @@ void QmBpmAnalyzer::feed(const float* interleavedStereo, int numFrames) {
 }
 
 float QmBpmAnalyzer::result() {
+    m_beatFrames.clear();
+    m_beats.clear();
     m_helper.finalize();
 
     // Trim trailing zeros (matches Mixxx finalize logic exactly).
@@ -301,11 +303,21 @@ float QmBpmAnalyzer::result() {
     for (double b : m_beats) {
         beatFrames.push_back(b * m_stepSizeFrames + m_stepSizeFrames / 2.0);
     }
+    m_beatFrames = std::move(beatFrames);
 
     // Replicate BeatUtils::calculateBpm (the path Mixxx uses to set the
     // track's displayed BPM): find the dominant constant-tempo region,
     // compute its average beat length, and snap to a "round" BPM.
-    auto regions = retrieveConstRegions(beatFrames, m_sampleRate);
+    auto regions = retrieveConstRegions(m_beatFrames, m_sampleRate);
     double bpm = makeConstBpm(regions, m_sampleRate);
     return static_cast<float>(bpm);
+}
+
+std::vector<double> QmBpmAnalyzer::beatFramesSecs() const {
+    std::vector<double> secs;
+    secs.reserve(m_beatFrames.size());
+    for (double frame : m_beatFrames) {
+        secs.push_back(frame / m_sampleRate);
+    }
+    return secs;
 }

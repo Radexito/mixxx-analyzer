@@ -21,6 +21,9 @@ class QmBpmAnalyzer {
     // Finalises analysis and returns detected BPM (0 if undetected).
     float result();
 
+    // Returns beat positions in seconds (populated after result() is called).
+    std::vector<double> beatFramesSecs(int sampleRate) const;
+
   private:
     int m_sampleRate;
     int m_windowSize;
@@ -29,5 +32,6 @@ class QmBpmAnalyzer {
     std::unique_ptr<DetectionFunction> m_pDetectionFunction;
     DownmixAndOverlapHelper m_helper;
     std::vector<double> m_detectionResults;
-    std::vector<double> m_beats;  // beat positions in df-increment units
+    std::vector<double> m_beats;       // beat positions in df-increment units
+    std::vector<double> m_beatFrames;  // beat positions in frames (set by result())
 };

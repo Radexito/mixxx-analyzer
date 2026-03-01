@@ -301,6 +301,7 @@ float QmBpmAnalyzer::result() {
     for (double b : m_beats) {
         beatFrames.push_back(b * m_stepSizeFrames + m_stepSizeFrames / 2.0);
     }
+    m_beatFrames = beatFrames;
 
     // Replicate BeatUtils::calculateBpm (the path Mixxx uses to set the
     // track's displayed BPM): find the dominant constant-tempo region,
@@ -308,4 +309,13 @@ float QmBpmAnalyzer::result() {
     auto regions = retrieveConstRegions(beatFrames, m_sampleRate);
     double bpm = makeConstBpm(regions, m_sampleRate);
     return static_cast<float>(bpm);
+}
+
+std::vector<double> QmBpmAnalyzer::beatFramesSecs(int sampleRate) const {
+    std::vector<double> secs;
+    secs.reserve(m_beatFrames.size());
+    for (double frame : m_beatFrames) {
+        secs.push_back(frame / sampleRate);
+    }
+    return secs;
 }

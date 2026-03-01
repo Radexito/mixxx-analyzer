@@ -4,9 +4,9 @@ import json
 import os
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 
 @dataclass
@@ -19,9 +19,22 @@ class AnalysisResult:
     replay_gain: float
     intro_secs: float
     outro_secs: float
+    tags: Dict[str, str] = field(default_factory=dict)
+    beatgrid: List[float] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, d: dict) -> "AnalysisResult":
+        tags = {
+            "title": d.get("title", ""),
+            "artist": d.get("artist", ""),
+            "album": d.get("album", ""),
+            "year": d.get("year", ""),
+            "genre": d.get("genre", ""),
+            "label": d.get("label", ""),
+            "comment": d.get("comment", ""),
+            "trackNumber": d.get("trackNumber", ""),
+            "bpmTag": d.get("bpmTag", ""),
+        }
         return cls(
             file=d["file"],
             bpm=d.get("bpm"),
@@ -31,6 +44,8 @@ class AnalysisResult:
             replay_gain=d["replayGain"],
             intro_secs=d["introSecs"],
             outro_secs=d["outroSecs"],
+            tags=tags,
+            beatgrid=d.get("beatgrid", []),
         )
 
 

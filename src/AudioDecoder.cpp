@@ -38,7 +38,7 @@ std::string avError(int err) {
 
 }  // namespace
 
-bool AudioDecoder::decode(const std::string &path, Callback cb, std::string &error) {
+bool AudioDecoder::decode(const std::string &path, Callback cb, std::string &error, Tags &tagsOut) {
     av_log_set_level(AV_LOG_ERROR);  // suppress decoder warnings (timestamp drift etc.)
 
     // --- Open container ---
@@ -53,6 +53,30 @@ bool AudioDecoder::decode(const std::string &path, Callback cb, std::string &err
         error = "avformat_find_stream_info: " + avError(err);
         return false;
     }
+
+    // --- Extract metadata tags ---
+    // av_dict_get with flags=0 is case-insensitive by default.
+    auto getTag = [&](const char *key) -> std::string {
+        AVDictionaryEntry *e = av_dict_get(fmt->metadata, key, nullptr, 0);
+        return e ? std::string(e->value) : std::string{};
+    };
+
+    tagsOut.title = getTag("title");
+    tagsOut.artist = getTag("artist");
+    tagsOut.album = getTag("album");
+    tagsOut.genre = getTag("genre");
+    tagsOut.comment = getTag("comment");
+    tagsOut.track_number = getTag("track");
+    tagsOut.label = getTag("label");
+
+    // BPM tag: try "BPM" first (ID3 TBPM maps to this), then "TBPM"
+    tagsOut.bpm_tag = getTag("BPM");
+    if (tagsOut.bpm_tag.empty())
+        tagsOut.bpm_tag = getTag("TBPM");
+
+    // "date" tag is often "2003" or "2003-01-15"; take first 4 chars as year
+    std::string date = getTag("date");
+    tagsOut.year = date.size() >= 4 ? date.substr(0, 4) : date;
 
     // --- Find best audio stream ---
     int streamIdx = av_find_best_stream(fmt.get(), AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);

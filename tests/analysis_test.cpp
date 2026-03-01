@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "AudioDecoder.h"
 #include "GainAnalyzer.h"
@@ -28,6 +29,8 @@ struct TrackResult {
     QmKeyAnalyzer::Result key;
     GainAnalyzer::Result gain;
     bool gainOk;
+    AudioDecoder::Tags tags;
+    std::vector<double> beatgrid;
 };
 
 static TrackResult analyzeTrack(const std::string& path) {
@@ -35,22 +38,25 @@ static TrackResult analyzeTrack(const std::string& path) {
     std::unique_ptr<QmKeyAnalyzer> key;
     std::unique_ptr<GainAnalyzer> gain;
     bool initialized = false;
+    int sampleRate = 0;
 
     std::string err;
+    AudioDecoder::Tags tags;
     bool ok = AudioDecoder::decode(
         path,
         [&](const float* samples, int numFrames, const AudioDecoder::AudioInfo& info) {
             if (!initialized) {
-                bpm = std::make_unique<QmBpmAnalyzer>(info.sampleRate);
-                key = std::make_unique<QmKeyAnalyzer>(info.sampleRate);
-                gain = std::make_unique<GainAnalyzer>(info.sampleRate);
+                sampleRate = info.sampleRate;
+                bpm = std::make_unique<QmBpmAnalyzer>(sampleRate);
+                key = std::make_unique<QmKeyAnalyzer>(sampleRate);
+                gain = std::make_unique<GainAnalyzer>(sampleRate);
                 initialized = true;
             }
             bpm->feed(samples, numFrames);
             key->feed(samples, numFrames);
             gain->feed(samples, numFrames);
         },
-        err);
+        err, tags);
 
     EXPECT_TRUE(ok) << "Decode failed: " << err;
     EXPECT_TRUE(initialized) << "No audio data in: " << path;
@@ -60,8 +66,11 @@ static TrackResult analyzeTrack(const std::string& path) {
         r.bpm = bpm->result();
         r.key = key->result();
         r.gainOk = gain->result(r.gain);
+        r.tags = std::move(tags);
+        r.beatgrid = bpm->beatFramesSecs(sampleRate);
     }
     return r;
+}
 }
 
 #define SKIP_IF_MISSING(path)                                                             \
@@ -91,6 +100,10 @@ TEST_P(AudionautixTest, BpmAndKey) {
     auto r = analyzeTrack(path);
     EXPECT_NEAR(r.bpm, GetParam().bpm, kBpmTol) << GetParam().file << " BPM: got " << r.bpm;
     EXPECT_EQ(r.key.camelot, GetParam().camelot) << GetParam().file << " Key: got " << r.key.key;
+    EXPECT_FALSE(r.beatgrid.empty()) << GetParam().file << " beatgrid should be non-empty";
+    if (!r.beatgrid.empty()) {
+        EXPECT_GT(r.beatgrid.front(), 0.0) << GetParam().file << " first beat should be > 0s";
+    }
 }
 
 // clang-format off

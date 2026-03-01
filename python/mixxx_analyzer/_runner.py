@@ -11,6 +11,25 @@ from typing import Dict, List, Optional
 
 @dataclass
 class AnalysisResult:
+    """Result of analyzing a single audio file.
+
+    Attributes:
+        file: Path to the analyzed file.
+        bpm: Detected BPM, or None if undetected.
+        key: Musical key (e.g. "A minor").
+        camelot: Camelot wheel notation (e.g. "8A").
+        lufs: Integrated loudness in LUFS.
+        replay_gain: ReplayGain adjustment in dB.
+        intro_secs: Estimated intro end timestamp in seconds.
+        outro_secs: Estimated outro start timestamp in seconds.
+        tags: Embedded metadata tags extracted from the container
+              (keys: title, artist, album, year, genre, label,
+               comment, trackNumber, bpmTag). Empty strings for
+               absent tags.
+        beatgrid: Beat positions in seconds (from the Queen Mary
+                  tempo tracker). Empty list if BPM was undetected.
+    """
+
     file: str
     bpm: Optional[float]
     key: str
@@ -73,7 +92,8 @@ def analyze(path: str) -> AnalysisResult:
     """Analyze a single audio file.
 
     Returns an AnalysisResult with BPM, key, Camelot notation,
-    LUFS loudness, ReplayGain, and intro/outro timestamps.
+    LUFS loudness, ReplayGain, intro/outro timestamps, embedded
+    metadata tags, and a full beatgrid (beat positions in seconds).
 
     Raises subprocess.CalledProcessError if the binary fails.
     Raises FileNotFoundError if the binary is not installed.

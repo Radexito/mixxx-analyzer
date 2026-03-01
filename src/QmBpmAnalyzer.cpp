@@ -306,7 +306,7 @@ float QmBpmAnalyzer::result() {
     // Replicate BeatUtils::calculateBpm (the path Mixxx uses to set the
     // track's displayed BPM): find the dominant constant-tempo region,
     // compute its average beat length, and snap to a "round" BPM.
-    auto regions = retrieveConstRegions(beatFrames, m_sampleRate);
+    auto regions = retrieveConstRegions(m_beatFrames, m_sampleRate);
     double bpm = makeConstBpm(regions, m_sampleRate);
     return static_cast<float>(bpm);
 }

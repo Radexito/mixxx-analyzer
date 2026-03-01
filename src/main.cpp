@@ -35,7 +35,7 @@ std::string jsonEscape(const std::string& s) {
         else if (c < 0x20) {
             // Escape remaining control characters as \u00XX
             char buf[7];
-            std::snprintf(buf, sizeof(buf), "\\u%04x", c);
+            std::snprintf(buf, sizeof(buf), "\\u%04x", static_cast<unsigned>(c));
             out += buf;
         } else
             out += static_cast<char>(c);
